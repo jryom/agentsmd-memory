@@ -30,6 +30,7 @@ export const tools = [
       "Call this PROACTIVELY the moment you learn something lasting and non-inferable \u2014 do not wait to be asked. " +
       "Triggers: an architecture decision or its rationale; a naming/structure convention; a build/test/deploy command that isn't obvious; " +
       "a gotcha or footgun you hit; a tooling quirk (e.g. uses Fossil not git, runs behind a proxy); a 'we tried X, it failed, use Y instead' lesson. " +
+      "Also call it when WRAPPING UP a task that revealed any such fact: before you report completion, ask yourself 'did I learn something a future session would have to rediscover?' and if so, save it. " +
       "Do NOT save: transient state (current bug, a path you're editing now), secrets/credentials, anything trivially re-derivable from the code, " +
       "or facts the user explicitly said are one-off. Keep each fact one concise sentence. " +
       "Returns merge instructions which you then carry out with your own Read/Edit tools. " +
@@ -72,8 +73,10 @@ export const tools = [
   {
     name: "memory_forget",
     description:
-      "Remove outdated or wrong facts from the nearest AGENTS.md. Call this PROACTIVELY the moment you discover a stored " +
-      "fact is now false \u2014 superseded by a refactor, a reversed decision, a renamed command, or a convention that changed. " +
+      "Remove outdated or wrong facts from the nearest AGENTS.md. Call this PROACTIVELY the moment you notice a stored fact no longer holds \u2014 do not wait to be asked. " +
+      "Triggers: you read AGENTS.md and a fact contradicts what you observe in the code; a command/path/convention it describes has been renamed or removed; " +
+      "a decision it records was reversed; a refactor made it obsolete; or you just changed something that invalidates an existing entry. " +
+      "Whenever you act on a fact from memory, sanity-check it against reality first \u2014 if it's stale, forget it. " +
       "Keeping stale memory is worse than none: it misleads future sessions. Describe what to remove in natural language; " +
       "matching is fuzzy. Returns instructions which you then carry out with your own Read/Edit tools, leaving all other facts intact.",
     inputSchema: {
