@@ -30,6 +30,16 @@ Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-m
 
 opencode uses `mcp` with `"type": "local"`; Claude Code: `claude mcp add --transport stdio memory -- npx -y agentsmd-memory`. Windows: wrap as `cmd /c npx -y agentsmd-memory`.
 
+### opencode plugin (recommended)
+
+The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. Enable it alongside the MCP server:
+
+```json
+{
+  "plugin": ["agentsmd-memory"]
+}
+```
+
 ## Config
 
 | Env | Default | Purpose |
@@ -39,8 +49,8 @@ opencode uses `mcp` with `"type": "local"`; Claude Code: `claude mcp add --trans
 ## Notes
 
 - Workspace dir is resolved from MCP roots, else a `cwd` arg, else `process.cwd()`. From there it walks up to the git root; nearest existing file wins.
-- The only direct write is bootstrapping a missing file on first `memory_save`. Everything else is instruction-only.
-- Saves are prompt-driven; the agent decides when to call them.
+- The tools never write files. When no memory file exists, `memory_save` returns instructions to create one; the agent authors it with its own Write tool, so even bootstrapping shows up as a reviewable diff.
+- Saves are prompt-driven; the agent decides when to call them. The bundled [opencode plugin](#opencode-plugin-recommended) nudges it every turn.
 
 ## Develop
 
