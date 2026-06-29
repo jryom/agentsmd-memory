@@ -12,17 +12,17 @@ function tmp() {
   return mkdtempSync(join(tmpdir(), "agentsmd-"))
 }
 
-test("memory_save bootstraps a new file directly", () => {
+test("memory_save returns create instructions for a new file, no write", () => {
   const dir = tmp()
   try {
     mkdirSync(join(dir, ".git"))
     const res = save.run({ learning: "uses pnpm not npm", cwd: dir }, {})
     assert.equal(res.isError, false)
     const file = join(dir, "AGENTS.md")
-    assert.ok(existsSync(file))
-    const content = readFileSync(file, "utf8")
-    assert.match(content, /uses pnpm not npm/)
-    assert.match(res.content[0].text, /No further action needed/)
+    assert.ok(!existsSync(file)) // not written; agent creates it
+    assert.match(res.content[0].text, /Create one at/)
+    assert.match(res.content[0].text, /uses pnpm not npm/)
+    assert.match(res.content[0].text, /Use your Write tool/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -59,7 +59,7 @@ test("memory_save uses roots from ctx over cwd", () => {
       { roots: [{ uri: "file://" + rootDir }] },
     )
     assert.equal(res.isError, false)
-    assert.ok(existsSync(join(rootDir, "AGENTS.md")))
+    assert.match(res.content[0].text, new RegExp(join(rootDir, "AGENTS.md").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
   } finally {
     rmSync(rootDir, { recursive: true, force: true })
   }
@@ -103,8 +103,8 @@ test("MEMORY_FILE override targets a different file", () => {
     process.env.MEMORY_FILE = "CLAUDE.md"
     const res = save.run({ learning: "claude-only fact", cwd: dir }, {})
     assert.equal(res.isError, false)
-    assert.ok(existsSync(join(dir, "CLAUDE.md")))
-    assert.ok(!existsSync(join(dir, "AGENTS.md")))
+    assert.match(res.content[0].text, /CLAUDE\.md/)
+    assert.doesNotMatch(res.content[0].text, /AGENTS\.md/)
   } finally {
     if (prev === undefined) delete process.env.MEMORY_FILE
     else process.env.MEMORY_FILE = prev

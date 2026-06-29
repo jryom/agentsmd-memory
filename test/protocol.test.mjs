@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, existsSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
@@ -102,7 +102,8 @@ test("full roots round-trip drives tool resolution to the root workspace", async
     })
     const callRes = h.find((m) => m.id === 9)
     assert.equal(callRes.result.isError, false)
-    assert.ok(existsSync(join(rootDir, "AGENTS.md")))
+    const text = callRes.result.content[0].text
+    assert.match(text, new RegExp(join(rootDir, "AGENTS.md").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
   } finally {
     rmSync(rootDir, { recursive: true, force: true })
   }

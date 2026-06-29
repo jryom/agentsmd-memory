@@ -1,9 +1,6 @@
 // memory_save and memory_forget. Neither edits files; they resolve the nearest
 // memory file and return instructions the agent applies with its own tools.
-// Only exception: memory_save bootstraps a missing file directly.
 
-import { writeFileSync } from "node:fs"
-import { basename, dirname } from "node:path"
 import { resolveBaseDir, resolveMemoryFile, memoryFileName } from "./resolve.mjs"
 
 const SAVE_RULES = [
@@ -48,12 +45,22 @@ export const tools = [
       const { path, exists } = resolveMemoryFile(resolveBaseDir({ roots: ctx?.roots, args }), memoryFileName())
       const learning = args.learning.trim()
       if (!exists) {
-        const project = basename(dirname(path)) || "project"
-        writeFileSync(
-          path,
-          `# ${project}\n\nProject memory for AI agents. Durable facts only.\n\n## Notes\n- ${learning}\n`,
+        return ok(
+          [
+            `No memory file exists yet. Create one at: ${path}`,
+            "",
+            "Seed it with this durable project fact:",
+            `"${learning}"`,
+            "",
+            "Author a well-formed file: a top-level title, then concise `##` sections",
+            "appropriate to the project. Place the fact in the most fitting section.",
+            "",
+            "Rules:",
+            SAVE_RULES,
+            "",
+            "Use your Write tool to create the file.",
+          ].join("\n"),
         )
-        return ok(`Created ${path} with this fact. No further action needed \u2014 do not edit it again for this save.`)
       }
       return ok(
         [
