@@ -1,7 +1,7 @@
 # agentsmd-memory
 
 [![npm](https://img.shields.io/npm/v/agentsmd-memory)](https://www.npmjs.com/package/agentsmd-memory)
-[![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/ci.yml)
+[![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml)
 [![license](https://img.shields.io/npm/l/agentsmd-memory)](./LICENSE)
 
 MCP server for keeping project memory in `AGENTS.md`. Zero dependencies.
