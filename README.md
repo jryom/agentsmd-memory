@@ -1,5 +1,9 @@
 # agentsmd-memory
 
+[![npm](https://img.shields.io/npm/v/agentsmd-memory)](https://www.npmjs.com/package/agentsmd-memory)
+[![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/agentsmd-memory)](./LICENSE)
+
 MCP server for keeping project memory in `AGENTS.md`. Zero dependencies.
 
 The tools don't edit files. They resolve the nearest `AGENTS.md` and return merge instructions; the agent applies them with its own edit tools, so changes show up as a git diff.
@@ -11,7 +15,7 @@ The tools don't edit files. They resolve the nearest `AGENTS.md` and return merg
 
 ## Install
 
-Runs via `npx`. Add to your MCP client's config:
+Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. Add to your MCP client's config:
 
 ```json
 {
@@ -44,6 +48,8 @@ opencode uses `mcp` with `"type": "local"`; Claude Code: `claude mcp add --trans
 npm test
 npx @modelcontextprotocol/inspector npx -y agentsmd-memory
 ```
+
+Source: [github.com/jryom/agentsmd-memory](https://github.com/jryom/agentsmd-memory).
 
 ## License
 
