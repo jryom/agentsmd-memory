@@ -1,0 +1,113 @@
+import { test } from "node:test"
+import assert from "node:assert/strict"
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { tools } from "../src/tools.mjs"
+
+const save = tools.find((t) => t.name === "memory_save")
+const forget = tools.find((t) => t.name === "memory_forget")
+
+function tmp() {
+  return mkdtempSync(join(tmpdir(), "agentsmd-"))
+}
+
+test("memory_save bootstraps a new file directly", () => {
+  const dir = tmp()
+  try {
+    mkdirSync(join(dir, ".git"))
+    const res = save.run({ learning: "uses pnpm not npm", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    const file = join(dir, "AGENTS.md")
+    assert.ok(existsSync(file))
+    const content = readFileSync(file, "utf8")
+    assert.match(content, /uses pnpm not npm/)
+    assert.match(res.content[0].text, /No further action needed/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_save on existing file returns merge instructions, no write", () => {
+  const dir = tmp()
+  try {
+    const file = join(dir, "AGENTS.md")
+    const before = "# proj\n\n## Notes\n- existing fact\n"
+    writeFileSync(file, before)
+    const res = save.run({ learning: "deploy via 'make ship'", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.match(res.content[0].text, /Update the memory file/)
+    assert.match(res.content[0].text, /deploy via 'make ship'/)
+    assert.equal(readFileSync(file, "utf8"), before) // untouched
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_save rejects empty learning", () => {
+  const res = save.run({ learning: "  " }, {})
+  assert.equal(res.isError, true)
+  assert.match(res.content[0].text, /non-empty/)
+})
+
+test("memory_save uses roots from ctx over cwd", () => {
+  const rootDir = tmp()
+  try {
+    mkdirSync(join(rootDir, ".git"))
+    const res = save.run(
+      { learning: "fact" },
+      { roots: [{ uri: "file://" + rootDir }] },
+    )
+    assert.equal(res.isError, false)
+    assert.ok(existsSync(join(rootDir, "AGENTS.md")))
+  } finally {
+    rmSync(rootDir, { recursive: true, force: true })
+  }
+})
+
+test("memory_forget returns instructions when file exists", () => {
+  const dir = tmp()
+  try {
+    writeFileSync(join(dir, "AGENTS.md"), "# proj\n- stale fact\n")
+    const res = forget.run({ description: "stale fact", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.match(res.content[0].text, /remove any facts matching/)
+    assert.match(res.content[0].text, /stale fact/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_forget reports nothing when no file exists", () => {
+  const dir = tmp()
+  try {
+    const res = forget.run({ description: "anything", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.match(res.content[0].text, /nothing to forget/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_forget rejects empty description", () => {
+  const res = forget.run({ description: "" }, {})
+  assert.equal(res.isError, true)
+  assert.match(res.content[0].text, /non-empty/)
+})
+
+test("MEMORY_FILE override targets a different file", () => {
+  const dir = tmp()
+  const prev = process.env.MEMORY_FILE
+  try {
+    mkdirSync(join(dir, ".git"))
+    process.env.MEMORY_FILE = "CLAUDE.md"
+    const res = save.run({ learning: "claude-only fact", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.ok(existsSync(join(dir, "CLAUDE.md")))
+    assert.ok(!existsSync(join(dir, "AGENTS.md")))
+  } finally {
+    if (prev === undefined) delete process.env.MEMORY_FILE
+    else process.env.MEMORY_FILE = prev
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
