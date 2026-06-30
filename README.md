@@ -114,14 +114,14 @@ Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type:
 
 ### opencode plugin (recommended)
 
-The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the [opencode](#opencode) config above. Override or disable the reminder text with the `MEMORY_NUDGE` env var (empty disables it).
+The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the [opencode](#opencode) config above. Override the reminder text with the `MEMORY_NUDGE` env var.
 
 ## Config
 
 | Env | Default | Purpose |
 | --- | --- | --- |
 | `MEMORY_FILE` | `AGENTS.md` | Target file name, e.g. `CLAUDE.md`, `GEMINI.md`. Bare name only. |
-| `MEMORY_NUDGE` | built-in reminder | opencode plugin only. Overrides the per-turn reminder text; set empty to disable injection. |
+| `MEMORY_NUDGE` | built-in reminder | opencode plugin only. Overrides the per-turn reminder text. To skip injection, don't load the plugin. |
 
 ## Notes
 

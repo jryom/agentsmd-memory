@@ -6,18 +6,21 @@
 // `"plugin": ["agentsmd-memory"]`. Independent of the MCP server (that runs via
 // `bin`); importing this module has no stdio side effects.
 
-const NUDGE =
-  "If you learn a durable project fact (architecture decision, convention, " +
-  "gotcha, non-obvious build/test/deploy command) call memory_save. " +
-  "If you find a stored fact that is now wrong, call memory_forget. " +
-  "When saving, match the structure and detail level already in the target file."
+const DEFAULT_NUDGE = `Learned a durable project fact (decision, convention, gotcha, non-obvious command)? Call memory_save. Found a stored fact that's now wrong? Call memory_forget. When saving, match the structure and detail level already in the target file.`
+
+// MEMORY_NUDGE overrides the reinforcement text. To skip injection entirely,
+// don't load the plugin. Resolved per request so env changes take effect live.
+function resolveNudge() {
+  const v = process.env.MEMORY_NUDGE
+  return v && v.trim().length > 0 ? v.trim() : DEFAULT_NUDGE
+}
 
 export const AgentsmdMemoryPlugin = async () => ({
   // opencode calls this before every LLM request and expects the hook to mutate
   // output.system (a string[]); the return value is discarded.
   "experimental.chat.system.transform": async (_input, output) => {
     if (!output || !Array.isArray(output.system)) return
-    output.system.push(NUDGE)
+    output.system.push(resolveNudge())
   },
 })
 
