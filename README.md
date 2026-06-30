@@ -15,15 +15,19 @@ The tools don't edit files. They resolve the nearest memory file and return inst
 
 ## Install
 
-Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. The config schema differs per client; pick yours below. On Windows, wrap the command as `cmd /c npx -y agentsmd-memory`.
+Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. The config schema differs per client; expand yours below. On Windows, wrap the command as `cmd /c npx -y agentsmd-memory`.
 
-### Claude Code
+<details>
+<summary><b>Claude Code</b></summary>
 
 ```sh
 claude mcp add --transport stdio memory -- npx -y agentsmd-memory
 ```
 
-### Claude Desktop / Cursor
+</details>
+
+<details>
+<summary><b>Claude Desktop / Cursor</b></summary>
 
 `claude_desktop_config.json` or `.cursor/mcp.json`:
 
@@ -38,7 +42,10 @@ claude mcp add --transport stdio memory -- npx -y agentsmd-memory
 }
 ```
 
-### opencode
+</details>
+
+<details>
+<summary><b>opencode</b></summary>
 
 `~/.config/opencode/opencode.json`. Note the differences: top-level `mcp` (not `mcpServers`), `command` is a single **array**, env goes in `environment` (not `env`).
 
@@ -58,7 +65,10 @@ claude mcp add --transport stdio memory -- npx -y agentsmd-memory
 
 The `plugin` line is recommended — see [opencode plugin](#opencode-plugin-recommended). It loads from npm by name, so it requires `agentsmd-memory >= 1.2.0`; restart opencode after editing.
 
-### GitHub Copilot — VS Code
+</details>
+
+<details>
+<summary><b>GitHub Copilot — VS Code</b></summary>
 
 `.vscode/mcp.json` (project) or your user `mcp.json`. Top-level key is `servers` and the type is `stdio`:
 
@@ -74,7 +84,10 @@ The `plugin` line is recommended — see [opencode plugin](#opencode-plugin-reco
 }
 ```
 
-### GitHub Copilot — CLI
+</details>
+
+<details>
+<summary><b>GitHub Copilot — CLI</b></summary>
 
 ```sh
 copilot mcp add memory -- npx -y agentsmd-memory
@@ -95,7 +108,10 @@ Or edit `~/.copilot/mcp-config.json` directly. Copilot CLI requires `type: "loca
 }
 ```
 
-### GitHub Copilot — coding agent (repo settings)
+</details>
+
+<details>
+<summary><b>GitHub Copilot — coding agent (repo settings)</b></summary>
 
 Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type: "local"`, `tools` required). Any env vars must be prefixed `COPILOT_MCP_`.
 
@@ -112,9 +128,11 @@ Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type:
 }
 ```
 
+</details>
+
 ### opencode plugin (recommended)
 
-The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the [opencode](#opencode) config above. Override the reminder text with the `MEMORY_NUDGE` env var.
+The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the opencode config above. Override the reminder text with the `MEMORY_NUDGE` env var.
 
 ## Config
 
