@@ -15,7 +15,17 @@ The tools don't edit files. They resolve the nearest `AGENTS.md` and return merg
 
 ## Install
 
-Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. Add to your MCP client's config:
+Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. The config schema differs per client; pick yours below. On Windows, wrap the command as `cmd /c npx -y agentsmd-memory`.
+
+### Claude Code
+
+```sh
+claude mcp add --transport stdio memory -- npx -y agentsmd-memory
+```
+
+### Claude Desktop / Cursor
+
+`claude_desktop_config.json` or `.cursor/mcp.json`:
 
 ```json
 {
@@ -28,23 +38,90 @@ Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-m
 }
 ```
 
-opencode uses `mcp` with `"type": "local"`; Claude Code: `claude mcp add --transport stdio memory -- npx -y agentsmd-memory`. Windows: wrap as `cmd /c npx -y agentsmd-memory`.
+### opencode
 
-### opencode plugin (recommended)
-
-The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. Enable it alongside the MCP server:
+`~/.config/opencode/opencode.json`. Note the differences: top-level `mcp` (not `mcpServers`), `command` is a single **array**, env goes in `environment` (not `env`).
 
 ```json
 {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "memory": {
+      "type": "local",
+      "command": ["npx", "-y", "agentsmd-memory"],
+      "enabled": true
+    }
+  },
   "plugin": ["agentsmd-memory"]
 }
 ```
+
+The `plugin` line is recommended — see [opencode plugin](#opencode-plugin-recommended). It loads from npm by name, so it requires `agentsmd-memory >= 1.2.0`; restart opencode after editing.
+
+### GitHub Copilot — VS Code
+
+`.vscode/mcp.json` (project) or your user `mcp.json`. Top-level key is `servers` and the type is `stdio`:
+
+```json
+{
+  "servers": {
+    "memory": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "agentsmd-memory"]
+    }
+  }
+}
+```
+
+### GitHub Copilot — CLI
+
+```sh
+copilot mcp add memory -- npx -y agentsmd-memory
+```
+
+Or edit `~/.copilot/mcp-config.json` directly. Copilot CLI requires `type: "local"` and a `tools` field:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "agentsmd-memory"],
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+### GitHub Copilot — coding agent (repo settings)
+
+Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type: "local"`, `tools` required). Any env vars must be prefixed `COPILOT_MCP_`.
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "type": "local",
+      "command": "npx",
+      "args": ["-y", "agentsmd-memory"],
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+### opencode plugin (recommended)
+
+The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the [opencode](#opencode) config above. Override or disable the reminder text with the `MEMORY_NUDGE` env var (empty disables it).
 
 ## Config
 
 | Env | Default | Purpose |
 | --- | --- | --- |
 | `MEMORY_FILE` | `AGENTS.md` | Target file name, e.g. `CLAUDE.md`, `GEMINI.md`. Bare name only. |
+| `MEMORY_NUDGE` | built-in reminder | opencode plugin only. Overrides the per-turn reminder text; set empty to disable injection. |
 
 ## Notes
 
