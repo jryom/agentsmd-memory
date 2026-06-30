@@ -22,7 +22,7 @@ test("memory_save returns create instructions for a new file, no write", () => {
     assert.ok(!existsSync(file)) // not written; agent creates it
     assert.match(res.content[0].text, /Create one at/)
     assert.match(res.content[0].text, /uses pnpm not npm/)
-    assert.match(res.content[0].text, /Use your Write tool/)
+    assert.match(res.content[0].text, /Write tool/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -36,7 +36,7 @@ test("memory_save on existing file returns merge instructions, no write", () => 
     writeFileSync(file, before)
     const res = save.run({ learning: "deploy via 'make ship'", cwd: dir }, {})
     assert.equal(res.isError, false)
-    assert.match(res.content[0].text, /Update the memory file/)
+    assert.match(res.content[0].text, /Integrate this fact into/)
     assert.match(res.content[0].text, /deploy via 'make ship'/)
     assert.equal(readFileSync(file, "utf8"), before) // untouched
   } finally {

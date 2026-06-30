@@ -3,17 +3,8 @@
 
 import { resolveBaseDir, resolveMemoryFile, memoryFileName } from "./resolve.mjs"
 
-const SAVE_RULES = [
-  "Merge into the most relevant existing section (do not blindly append).",
-  "If it supersedes an existing fact, replace that line. If related, combine.",
-  "Dedup. Keep entries concise (terse, fragment style).",
-  "Save only durable truths: decisions, conventions, architecture, gotchas, non-inferable tooling.",
-  "Never save: transient state, task progress, file contents, or secrets (tokens/keys/passwords).",
-  "Preserve all unrelated content untouched.",
-  "If the memory grows beyond ~150 lines, consolidate aggressively.",
-]
-  .map((r) => `- ${r}`)
-  .join("\n")
+const SAVE_RULES = `- Merge into the most relevant section; don't blindly append. Replace a superseded fact in place; combine related ones.
+- Keep entries terse (fragment style) and deduped. Leave unrelated content untouched. Never write secrets.`
 
 const ok = (text) => ({ content: [{ type: "text", text }], isError: false })
 const fail = (text) => ({ content: [{ type: "text", text }], isError: true })
@@ -23,15 +14,11 @@ export const tools = [
   {
     name: "memory_save",
     description:
-      "Persist a durable project fact to the nearest AGENTS.md so future sessions skip rediscovering it. " +
-      "Call this PROACTIVELY the moment you learn something lasting and non-inferable \u2014 do not wait to be asked. " +
-      "Triggers: an architecture decision or its rationale; a naming/structure convention; a build/test/deploy command that isn't obvious; " +
-      "a gotcha or footgun you hit; a tooling quirk (e.g. uses Fossil not git, runs behind a proxy); a 'we tried X, it failed, use Y instead' lesson. " +
-      "Also call it when WRAPPING UP a task that revealed any such fact: before you report completion, ask yourself 'did I learn something a future session would have to rediscover?' and if so, save it. " +
-      "Do NOT save: transient state (current bug, a path you're editing now), secrets/credentials, anything trivially re-derivable from the code, " +
-      "or facts the user explicitly said are one-off. Keep each fact one concise sentence. " +
-      "Returns merge instructions which you then carry out with your own Read/Edit tools. " +
-      "Exception: if no memory file exists yet, this creates it directly and no further action is needed.",
+      "Persist a durable project fact to the nearest memory file (AGENTS.md by default) so future sessions skip rediscovering it. " +
+      "Call PROACTIVELY the moment you learn something lasting and non-inferable, and again when wrapping up a task that revealed one \u2014 don't wait to be asked. " +
+      "Save: architecture decisions and their rationale; naming/structure conventions; non-obvious build/test/deploy commands; gotchas; tooling quirks (e.g. uses Fossil not git, runs behind a proxy); 'tried X, failed, use Y' lessons. " +
+      "Don't save: transient state, secrets/credentials, anything re-derivable from the code, or one-off facts. Keep each fact to one concise sentence. " +
+      "Returns instructions you carry out with your own Write/Edit tools (creating the file if none exists); it does not write files itself.",
     inputSchema: {
       type: "object",
       properties: {
@@ -46,46 +33,32 @@ export const tools = [
       const learning = args.learning.trim()
       if (!exists) {
         return ok(
-          [
-            `No memory file exists yet. Create one at: ${path}`,
-            "",
-            "Seed it with this durable project fact:",
-            `"${learning}"`,
-            "",
-            "Author a well-formed file: a top-level title, then concise `##` sections",
-            "appropriate to the project. Place the fact in the most fitting section.",
-            "",
-            "Rules:",
-            SAVE_RULES,
-            "",
-            "Use your Write tool to create the file.",
-          ].join("\n"),
+          `No memory file exists. Create one at ${path} with your Write tool, seeded with this fact:
+"${learning}"
+
+Give it a top-level title and concise \`##\` sections suited to the project; place the fact in the most fitting one.
+
+Rules:
+${SAVE_RULES}`,
         )
       }
       return ok(
-        [
-          `Update the memory file: ${path}`,
-          "",
-          "Integrate this learning as a durable project fact:",
-          `"${learning}"`,
-          "",
-          "Rules:",
-          SAVE_RULES,
-          "",
-          "Use your Read tool to inspect current content first, then Edit.",
-        ].join("\n"),
+        `Integrate this fact into ${path}:
+"${learning}"
+
+Read the current content first, then Edit.
+
+Rules:
+${SAVE_RULES}`,
       )
     },
   },
   {
     name: "memory_forget",
     description:
-      "Remove outdated or wrong facts from the nearest AGENTS.md. Call this PROACTIVELY the moment you notice a stored fact no longer holds \u2014 do not wait to be asked. " +
-      "Triggers: you read AGENTS.md and a fact contradicts what you observe in the code; a command/path/convention it describes has been renamed or removed; " +
-      "a decision it records was reversed; a refactor made it obsolete; or you just changed something that invalidates an existing entry. " +
-      "Whenever you act on a fact from memory, sanity-check it against reality first \u2014 if it's stale, forget it. " +
-      "Keeping stale memory is worse than none: it misleads future sessions. Describe what to remove in natural language; " +
-      "matching is fuzzy. Returns instructions which you then carry out with your own Read/Edit tools, leaving all other facts intact.",
+      "Remove outdated or wrong facts from the nearest memory file (AGENTS.md by default). Call PROACTIVELY the moment a stored fact no longer holds \u2014 don't wait to be asked. " +
+      "Forget when: a fact contradicts what you observe in the code; a command/path/convention was renamed or removed; a decision was reversed; a refactor made it obsolete; or your own change invalidates an entry. " +
+      "Describe what to remove in natural language (matching is fuzzy). Returns instructions you carry out with your own Read/Edit tools, leaving all other facts intact.",
     inputSchema: {
       type: "object",
       properties: {
@@ -101,13 +74,10 @@ export const tools = [
       const { path, exists } = resolveMemoryFile(base, fileName)
       if (!exists) return ok(`No ${fileName} found near ${base}; nothing to forget.`)
       return ok(
-        [
-          `In ${path}, remove any facts matching:`,
-          `"${args.description.trim()}"`,
-          "",
-          "Leave all other content intact. If nothing matches, report that and make no change.",
-          "Use your Read tool to inspect current content first, then Edit.",
-        ].join("\n"),
+        `In ${path}, remove any facts matching:
+"${args.description.trim()}"
+
+Read the current content first, then Edit. Leave everything else intact. If nothing matches, say so and change nothing.`,
       )
     },
   },

@@ -6,7 +6,7 @@
 
 MCP server for keeping project memory in `AGENTS.md`. Zero dependencies.
 
-The tools don't edit files. They resolve the nearest `AGENTS.md` and return merge instructions; the agent applies them with its own edit tools, so changes show up as a git diff.
+The tools don't edit files. They resolve the nearest memory file and return instructions the agent carries out with its own Write/Edit tools, so every change — even creating the file — shows up as a reviewable git diff.
 
 ## Tools
 
