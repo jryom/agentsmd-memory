@@ -1,0 +1,16 @@
+{
+  "description": "Per-turn reminder so the agent reaches for the memory tools.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/nudge.mjs"]
+          }
+        ]
+      }
+    ]
+  }
+}

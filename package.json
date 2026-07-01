@@ -9,6 +9,8 @@
   "main": "src/plugin.mjs",
   "files": [
     "src",
+    "hooks",
+    ".claude-plugin",
     "README.md",
     "LICENSE"
   ],

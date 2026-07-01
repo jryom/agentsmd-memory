@@ -18,7 +18,23 @@ The tools don't edit files. They resolve the nearest memory file and return inst
 Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. The config schema differs per client; expand yours below. On Windows, wrap the command as `cmd /c npx -y agentsmd-memory`.
 
 <details>
-<summary><b>Claude Code</b></summary>
+<summary><b>Claude Code — plugin (recommended)</b></summary>
+
+Installs the MCP tools **and** a per-turn nudge in one step (see [why the nudge helps](#opencode-plugin-recommended); Claude Code delivers it via a `UserPromptSubmit` hook):
+
+```sh
+claude plugin marketplace add jryom/agentsmd-memory
+claude plugin install agentsmd-memory@agentsmd-memory
+```
+
+Override the reminder text with the `MEMORY_NUDGE` env var. No file config needed: the tools prefer `AGENTS.md` and fall back to `CLAUDE.md`, which Claude Code auto-loads (see [Config](#config)).
+
+</details>
+
+<details>
+<summary><b>Claude Code — MCP only</b></summary>
+
+Tools without the nudge:
 
 ```sh
 claude mcp add --transport stdio memory -- npx -y agentsmd-memory
