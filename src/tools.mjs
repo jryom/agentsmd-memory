@@ -1,7 +1,7 @@
 // memory_save and memory_forget. Neither edits files; they resolve the nearest
 // memory file and return instructions the agent applies with its own tools.
 
-import { resolveBaseDir, resolveMemoryFile, memoryFileName } from "./resolve.mjs"
+import { resolveBaseDir, resolveMemoryFile, memoryFileNames } from "./resolve.mjs"
 
 const SAVE_RULES = `- Merge into the most relevant section; don't blindly append. Replace a superseded fact in place; combine related ones.
 - Keep entries terse (fragment style) and deduped. Leave unrelated content untouched. Never write secrets.`
@@ -29,7 +29,7 @@ export const tools = [
     },
     run(args, ctx) {
       if (!filled(args?.learning)) return fail("memory_save requires a non-empty `learning` string.")
-      const { path, exists } = resolveMemoryFile(resolveBaseDir({ roots: ctx?.roots, args }), memoryFileName())
+      const { path, exists } = resolveMemoryFile(resolveBaseDir({ roots: ctx?.roots, args }), memoryFileNames())
       const learning = args.learning.trim()
       if (!exists) {
         return ok(
@@ -70,9 +70,9 @@ ${SAVE_RULES}`,
     run(args, ctx) {
       if (!filled(args?.description)) return fail("memory_forget requires a non-empty `description` string.")
       const base = resolveBaseDir({ roots: ctx?.roots, args })
-      const fileName = memoryFileName()
-      const { path, exists } = resolveMemoryFile(base, fileName)
-      if (!exists) return ok(`No ${fileName} found near ${base}; nothing to forget.`)
+      const names = memoryFileNames()
+      const { path, exists } = resolveMemoryFile(base, names)
+      if (!exists) return ok(`No ${names.join(" or ")} found near ${base}; nothing to forget.`)
       return ok(
         `In ${path}, remove any facts matching:
 "${args.description.trim()}"

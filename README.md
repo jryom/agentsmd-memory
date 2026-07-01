@@ -148,18 +148,20 @@ Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type:
 
 ### opencode plugin (recommended)
 
-The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package also ships an opencode plugin that injects a short reminder into the system prompt every turn, so the agent reliably reaches for `memory_save`/`memory_forget`. It's enabled via the `"plugin": ["agentsmd-memory"]` line in the opencode config above. Override the reminder text with the `MEMORY_NUDGE` env var.
+The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package ships plugins for opencode and [Claude Code](#install) that inject a short reminder every turn (opencode via the system prompt, Claude Code via a `UserPromptSubmit` hook), so the agent reliably reaches for `memory_save`/`memory_forget`. The opencode plugin is enabled via the `"plugin": ["agentsmd-memory"]` line in the config above. Override the reminder text with the `MEMORY_NUDGE` env var.
 
 ## Config
 
 | Env | Default | Purpose |
 | --- | --- | --- |
-| `MEMORY_FILE` | `AGENTS.md` | Target file name, e.g. `CLAUDE.md`, `GEMINI.md`. Bare name only. |
-| `MEMORY_NUDGE` | built-in reminder | opencode plugin only. Overrides the per-turn reminder text. To skip injection, don't load the plugin. |
+| `MEMORY_FILE` | _(unset)_ | Pin the target to a single file name, e.g. `GEMINI.md`. Bare name only. When set, disables the auto fallback below. |
+| `MEMORY_NUDGE` | built-in reminder | opencode/Claude Code plugin only. Overrides the per-turn reminder text. To skip injection, don't load the plugin. |
+
+When `MEMORY_FILE` is unset the tools prefer `AGENTS.md`, then fall back to `CLAUDE.md`. So a Claude Code repo that only has `CLAUDE.md` (which Claude auto-loads; it doesn't read `AGENTS.md`) is found without any config, while `AGENTS.md` stays preferred for cross-tool sharing when present.
 
 ## Notes
 
-- Workspace dir is resolved from MCP roots, else a `cwd` arg, else `process.cwd()`. From there it walks up to the git root; nearest existing file wins.
+- Workspace dir is resolved from MCP roots, else a `cwd` arg, else `process.cwd()`. From there it walks up to the git root; the nearest existing file wins, and at a given level `AGENTS.md` beats the `CLAUDE.md` fallback. When nothing exists, `AGENTS.md` is created at the git root.
 - The tools never write files. When no memory file exists, `memory_save` returns instructions to create one; the agent authors it with its own Write tool, so even bootstrapping shows up as a reviewable diff.
 - Saves are prompt-driven; the agent decides when to call them. The bundled [opencode plugin](#opencode-plugin-recommended) nudges it every turn.
 

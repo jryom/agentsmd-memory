@@ -84,6 +84,36 @@ test("memory_forget reports nothing when no file exists", () => {
     const res = forget.run({ description: "anything", cwd: dir }, {})
     assert.equal(res.isError, false)
     assert.match(res.content[0].text, /nothing to forget/)
+    assert.match(res.content[0].text, /AGENTS\.md or CLAUDE\.md/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_forget falls back to CLAUDE.md when AGENTS.md is absent", () => {
+  const dir = tmp()
+  try {
+    writeFileSync(join(dir, "CLAUDE.md"), "# claude\n- stale fact\n")
+    const res = forget.run({ description: "stale fact", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.match(res.content[0].text, /CLAUDE\.md/)
+    assert.match(res.content[0].text, /remove any facts matching/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("memory_save integrates into an existing CLAUDE.md when no AGENTS.md", () => {
+  const dir = tmp()
+  try {
+    const file = join(dir, "CLAUDE.md")
+    const before = "# proj\n\n## Notes\n- existing\n"
+    writeFileSync(file, before)
+    const res = save.run({ learning: "prefers pnpm", cwd: dir }, {})
+    assert.equal(res.isError, false)
+    assert.match(res.content[0].text, /Integrate this fact into/)
+    assert.match(res.content[0].text, /CLAUDE\.md/)
+    assert.equal(readFileSync(file, "utf8"), before) // untouched
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

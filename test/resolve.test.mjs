@@ -6,6 +6,7 @@ import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import {
   memoryFileName,
+  memoryFileNames,
   rootUriToPath,
   resolveBaseDir,
   resolveMemoryFile,
@@ -30,6 +31,16 @@ test("memoryFileName strips paths and rejects traversal", () => {
   assert.equal(memoryFileName({ MEMORY_FILE: "../../etc/passwd" }), "passwd")
   assert.equal(memoryFileName({ MEMORY_FILE: "/abs/CLAUDE.md" }), "CLAUDE.md")
   assert.equal(memoryFileName({ MEMORY_FILE: ".." }), DEFAULT_FILE)
+})
+
+test("memoryFileNames defaults to AGENTS.md then CLAUDE.md", () => {
+  assert.deepEqual(memoryFileNames({}), [DEFAULT_FILE, "CLAUDE.md"])
+  assert.deepEqual(memoryFileNames({ MEMORY_FILE: "   " }), [DEFAULT_FILE, "CLAUDE.md"])
+})
+
+test("memoryFileNames collapses to a single explicit override (no fallback)", () => {
+  assert.deepEqual(memoryFileNames({ MEMORY_FILE: "CLAUDE.md" }), ["CLAUDE.md"])
+  assert.deepEqual(memoryFileNames({ MEMORY_FILE: "../../etc/passwd" }), ["passwd"])
 })
 
 test("rootUriToPath converts file:// URIs", () => {
@@ -100,6 +111,60 @@ test("resolveMemoryFile respects custom file name", () => {
     const res = resolveMemoryFile(root, "CLAUDE.md")
     assert.equal(res.exists, true)
     assert.equal(res.path, join(root, "CLAUDE.md"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("resolveMemoryFile falls back to CLAUDE.md when AGENTS.md is absent", () => {
+  const root = tmp()
+  try {
+    writeFileSync(join(root, "CLAUDE.md"), "# claude\n")
+    const res = resolveMemoryFile(root)
+    assert.equal(res.exists, true)
+    assert.equal(res.path, join(root, "CLAUDE.md"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("resolveMemoryFile prefers AGENTS.md when both exist at the same level", () => {
+  const root = tmp()
+  try {
+    writeFileSync(join(root, "AGENTS.md"), "# agents\n")
+    writeFileSync(join(root, "CLAUDE.md"), "# claude\n")
+    const res = resolveMemoryFile(root)
+    assert.equal(res.exists, true)
+    assert.equal(res.path, join(root, DEFAULT_FILE))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("resolveMemoryFile: nearer CLAUDE.md wins over a farther AGENTS.md", () => {
+  const root = tmp()
+  try {
+    writeFileSync(join(root, "AGENTS.md"), "# far agents\n")
+    const sub = join(root, "pkg")
+    mkdirSync(sub, { recursive: true })
+    writeFileSync(join(sub, "CLAUDE.md"), "# near claude\n")
+    const res = resolveMemoryFile(sub)
+    assert.equal(res.exists, true)
+    assert.equal(res.path, join(sub, "CLAUDE.md"))
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test("resolveMemoryFile creates AGENTS.md at git root when nothing exists", () => {
+  const root = tmp()
+  try {
+    mkdirSync(join(root, ".git"))
+    const sub = join(root, "a")
+    mkdirSync(sub, { recursive: true })
+    const res = resolveMemoryFile(sub)
+    assert.equal(res.exists, false)
+    assert.equal(res.path, join(root, DEFAULT_FILE))
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
