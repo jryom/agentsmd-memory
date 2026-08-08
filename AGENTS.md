@@ -11,7 +11,8 @@ Zero-dependency MCP server exposing `memory_save`/`memory_forget`. Tools never w
 
 - Claude Code auto-discovers `hooks/hooks.json`; do NOT list it under `hooks` in `.claude-plugin/plugin.json` — causes a "Duplicate hooks file" load failure.
 - Codex also auto-discovers `hooks/hooks.json`; keep the shared hook command as one string. Codex ignores Claude-style separate `args` in hook handlers.
-- Claude Code and Codex share `.mcp.json`. Its Node launcher receives both
-  `${PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_ROOT}`, then selects whichever host
-  expanded; neither variable works for both clients by itself.
+- Claude Code and Codex share `.mcp.json`, which launches unpinned
+  `npx -y agentsmd-memory`. This intentionally follows npm's `latest` tag;
+  plugin-root variables are hook-only in Codex and cannot portably locate the
+  bundled MCP source across both clients.
 - `marketplace.json` rejects a `$schema` key and wants the description under `metadata.description` (not top-level).

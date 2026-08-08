@@ -175,6 +175,9 @@ When `MEMORY_FILE` is unset the tools prefer `AGENTS.md`, then fall back to `CLA
 
 ## Notes
 
+- Claude Code and Codex plugin installs launch the MCP server through unpinned
+  `npx -y agentsmd-memory`, intentionally following npm's `latest` tag. npm may
+  download package code on startup and caches fetched packages.
 - Workspace dir is resolved from MCP roots, else a `cwd` arg, else `process.cwd()`. From there it walks up to the git root; the nearest existing file wins, and at a given level `AGENTS.md` beats the `CLAUDE.md` fallback. When nothing exists, `AGENTS.md` is created at the git root.
 - The tools never write files. When no memory file exists, `memory_save` returns instructions to create one; the agent authors it with its own Write tool, so even bootstrapping shows up as a reviewable diff.
 - Saves are prompt-driven; the agent decides when to call them. Bundled integrations nudge it every turn.

@@ -1,13 +1,8 @@
 {
   "mcpServers": {
     "memory": {
-      "command": "node",
-      "args": [
-        "-e",
-        "const { join } = require('node:path'); const { pathToFileURL } = require('node:url'); const root = process.argv.slice(1).find((value) => value && !value.includes('$' + '{')); if (!root) throw new Error('plugin root unavailable'); import(pathToFileURL(join(root, 'src', 'index.mjs')).href)",
-        "${PLUGIN_ROOT}",
-        "${CLAUDE_PLUGIN_ROOT}"
-      ]
+      "command": "npx",
+      "args": ["-y", "agentsmd-memory"]
     }
   }
 }

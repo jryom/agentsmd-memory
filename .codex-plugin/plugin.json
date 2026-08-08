@@ -1,6 +1,6 @@
 {
   "name": "agentsmd-memory",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Self-updating project memory in AGENTS.md (falls back to CLAUDE.md). Bundles memory_save/memory_forget MCP tools and a per-turn reminder.",
   "author": {
     "name": "jryom",
