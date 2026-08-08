@@ -1,6 +1,7 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
 import { execFileSync } from "node:child_process"
+import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
 const script = fileURLToPath(new URL("../hooks/nudge.mjs", import.meta.url))
@@ -28,4 +29,14 @@ test("MEMORY_NUDGE overrides the injected text", () => {
 test("empty MEMORY_NUDGE falls back to the default text", () => {
   const { hookSpecificOutput } = run({ MEMORY_NUDGE: "   " })
   assert.match(hookSpecificOutput.additionalContext, /memory_save/)
+})
+
+test("shared hook uses Codex-compatible single-string command", () => {
+  const config = JSON.parse(
+    readFileSync(new URL("../hooks/hooks.json", import.meta.url), "utf8"),
+  )
+  const handler = config.hooks.UserPromptSubmit[0].hooks[0]
+  assert.equal(handler.type, "command")
+  assert.match(handler.command, /CLAUDE_PLUGIN_ROOT/)
+  assert.equal("args" in handler, false)
 })

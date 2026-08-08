@@ -1,17 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agentsmd-memory",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Self-updating project memory in AGENTS.md (falls back to CLAUDE.md). Bundles the memory_save/memory_forget MCP tools and a per-turn nudge so the agent actually calls them.",
   "author": { "name": "jryom" },
   "homepage": "https://github.com/jryom/agentsmd-memory",
   "repository": "https://github.com/jryom/agentsmd-memory",
   "license": "MIT",
-  "keywords": ["mcp", "agents.md", "memory", "ai", "agent"],
-  "mcpServers": {
-    "memory": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/src/index.mjs"]
-    }
-  }
+  "keywords": ["mcp", "agents.md", "memory", "ai", "agent", "codex"]
 }

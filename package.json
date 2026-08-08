@@ -1,6 +1,6 @@
 {
   "name": "agentsmd-memory",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Zero-dependency MCP server that gives AI agents a self-updating project memory in AGENTS.md. Returns merge instructions instead of mutating state, so every change is a reviewable diff.",
   "type": "module",
   "bin": {
@@ -11,6 +11,8 @@
     "src",
     "hooks",
     ".claude-plugin",
+    ".codex-plugin",
+    ".mcp.json",
     "README.md",
     "LICENSE"
   ],
@@ -30,6 +32,8 @@
     "ai",
     "agent",
     "claude",
+    "codex",
+    "openai",
     "cursor",
     "opencode",
     "llm"

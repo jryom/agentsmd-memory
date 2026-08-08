@@ -6,8 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/nudge.mjs"]
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/nudge.mjs\""
           }
         ]
       }

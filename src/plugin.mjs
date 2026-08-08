@@ -10,8 +10,8 @@ export const DEFAULT_NUDGE = `Learned a durable project fact (decision, conventi
 
 // MEMORY_NUDGE overrides the reinforcement text. To skip injection entirely,
 // don't load the plugin. Resolved per request so env changes take effect live.
-// Shared with the Claude Code hook (hooks/nudge.mjs) so both clients emit the
-// same text and honor the same override.
+// Shared with the Claude Code/Codex hook (hooks/nudge.mjs) so every client
+// emits the same text and honors the same override.
 export function resolveNudge() {
   const v = process.env.MEMORY_NUDGE
   return v && v.trim().length > 0 ? v.trim() : DEFAULT_NUDGE

@@ -1,6 +1,6 @@
 # agentsmd-memory
 
-Zero-dependency MCP server exposing `memory_save`/`memory_forget`. Tools never write files; they return merge instructions the agent applies itself. Ships an opencode plugin and a Claude Code plugin, both injecting a per-turn nudge (shared `resolveNudge` in `src/plugin.mjs`, overridable via `MEMORY_NUDGE`).
+Zero-dependency MCP server exposing `memory_save`/`memory_forget`. Tools never write files; they return merge instructions the agent applies itself. Ships opencode, Claude Code, and Codex integrations, all injecting a per-turn nudge (shared `resolveNudge` in `src/plugin.mjs`, overridable via `MEMORY_NUDGE`).
 
 ## Resolution
 
@@ -10,4 +10,6 @@ Zero-dependency MCP server exposing `memory_save`/`memory_forget`. Tools never w
 ## Gotchas
 
 - Claude Code auto-discovers `hooks/hooks.json`; do NOT list it under `hooks` in `.claude-plugin/plugin.json` — causes a "Duplicate hooks file" load failure.
+- Codex also auto-discovers `hooks/hooks.json`; keep the shared hook command as one string. Codex ignores Claude-style separate `args` in hook handlers.
+- Claude Code and Codex share `.mcp.json`. Keep `CLAUDE_PLUGIN_ROOT`: Codex exports it as a compatibility variable.
 - `marketplace.json` rejects a `$schema` key and wants the description under `metadata.description` (not top-level).

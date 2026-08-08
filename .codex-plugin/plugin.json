@@ -1,0 +1,29 @@
+{
+  "name": "agentsmd-memory",
+  "version": "1.5.0",
+  "description": "Self-updating project memory in AGENTS.md (falls back to CLAUDE.md). Bundles memory_save/memory_forget MCP tools and a per-turn reminder.",
+  "author": {
+    "name": "jryom",
+    "url": "https://github.com/jryom"
+  },
+  "homepage": "https://github.com/jryom/agentsmd-memory",
+  "repository": "https://github.com/jryom/agentsmd-memory",
+  "license": "MIT",
+  "keywords": ["mcp", "agents.md", "memory", "ai", "agent", "codex"],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AGENTS.md Memory",
+    "shortDescription": "Keep durable project memory current",
+    "longDescription": "Adds memory_save and memory_forget tools plus a per-turn reminder so Codex keeps AGENTS.md current through reviewable edits.",
+    "developerName": "jryom",
+    "category": "Productivity",
+    "capabilities": ["MCP tools", "Lifecycle hooks"],
+    "websiteURL": "https://github.com/jryom/agentsmd-memory",
+    "defaultPrompt": [
+      "Save a durable project fact to AGENTS.md.",
+      "Remove stale guidance from AGENTS.md.",
+      "Review project memory for stale facts."
+    ],
+    "brandColor": "#10A37F"
+  }
+}
