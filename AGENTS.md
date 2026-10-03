@@ -5,7 +5,7 @@ Zero-dependency MCP server exposing `memory_save`/`memory_forget`/`memory_review
 ## Policy
 
 - Admission is deliberately conservative: batch only mistake-preventing or costly-to-rediscover facts at task completion; cleanup is explicit, and soft budgets never override essential instructions.
-- Keep docs short and plain; README covers common setup, with secondary client examples and release procedures in linked docs.
+- Keep docs short and plain; README covers common setup, with secondary client examples and release procedures in linked docs. Release notes focus on changes; omit commentary about preserving the existing runtime minimum.
 
 ## Resolution
 
