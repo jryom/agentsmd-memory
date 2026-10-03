@@ -1,5 +1,5 @@
 {
-  "description": "Per-turn reminder so the agent reaches for the memory tools.",
+  "description": "Conservative reminder to assess project memory at task completion.",
   "hooks": {
     "UserPromptSubmit": [
       {

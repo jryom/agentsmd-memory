@@ -19,7 +19,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   try {
     msg = JSON.parse(line)
   } catch {
-    return
+    return send({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } })
   }
   Promise.resolve(server.handleMessage(msg)).catch(() => {})
 })

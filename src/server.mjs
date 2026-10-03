@@ -4,13 +4,15 @@
 
 import { tools as defaultTools } from "./tools.mjs"
 
-export const PROTOCOL_VERSION = "2024-11-05"
+export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
+export const PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0]
 const ROOTS_TIMEOUT_MS = 2000
 
 export function createServer({ send, tools = defaultTools, version = "0.0.0" } = {}) {
   let supportsRoots = false
   let roots = null // null = unfetched; array = fetched
   let rootsPromise = null
+  let rootsGeneration = 0
   let nextId = 1
   const pending = new Map()
 
@@ -30,28 +32,38 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
   function ensureRoots() {
     if (roots !== null) return Promise.resolve(roots)
     if (!supportsRoots) return Promise.resolve((roots = []))
-    return (rootsPromise ??= request("roots/list", {}).then((res) => {
+    if (rootsPromise) return rootsPromise
+    const generation = rootsGeneration
+    return (rootsPromise = request("roots/list", {}).then((res) => {
+      if (generation !== rootsGeneration) return ensureRoots()
       rootsPromise = null
       return (roots = (res && Array.isArray(res.roots) && res.roots) || [])
     }))
   }
 
   async function handleMessage(msg) {
-    if (!msg || typeof msg !== "object") return
+    if (!msg || typeof msg !== "object" || Array.isArray(msg) || msg.jsonrpc !== "2.0") {
+      return fail(null, -32600, "Invalid request")
+    }
     const { id, method, params } = msg
 
-    if (method === undefined && pending.has(id)) {
-      const { resolve, timer } = pending.get(id)
-      clearTimeout(timer)
-      pending.delete(id)
-      resolve("error" in msg ? null : msg.result)
+    if (method !== undefined && typeof method !== "string") return fail(id ?? null, -32600, "Invalid request method")
+
+    if (method === undefined) {
+      if (!("result" in msg) && !("error" in msg)) return fail(id ?? null, -32600, "Invalid request")
+      if (pending.has(id)) {
+        const { resolve, timer } = pending.get(id)
+        clearTimeout(timer)
+        pending.delete(id)
+        resolve("error" in msg ? null : msg.result)
+      }
       return
     }
 
     if (method === "initialize") {
       supportsRoots = Boolean(params?.capabilities?.roots)
       return reply(id, {
-        protocolVersion: typeof params?.protocolVersion === "string" ? params.protocolVersion : PROTOCOL_VERSION,
+        protocolVersion: SUPPORTED_PROTOCOL_VERSIONS.includes(params?.protocolVersion) ? params.protocolVersion : PROTOCOL_VERSION,
         capabilities: { tools: {} },
         serverInfo: { name: "agentsmd-memory", version },
       })
@@ -59,9 +71,17 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
 
     if (method?.startsWith("notifications/")) {
       if (method === "notifications/initialized") ensureRoots()
-      else if (method === "notifications/roots/list_changed") (roots = null), (rootsPromise = null)
+      else if (method === "notifications/roots/list_changed") {
+        rootsGeneration++
+        roots = null
+        rootsPromise = null
+      }
       return
     }
+
+    if (id === undefined) return
+
+    if (method === "ping") return reply(id, {})
 
     if (method === "tools/list") {
       return reply(id, {
@@ -72,8 +92,10 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
     if (method === "tools/call") {
       const tool = tools.find((t) => t.name === params?.name)
       if (!tool) return fail(id, -32602, `Unknown tool: ${params?.name}`)
+      const args = params?.arguments === undefined ? {} : params.arguments
+      if (!args || typeof args !== "object" || Array.isArray(args)) return fail(id, -32602, "Tool arguments must be an object")
       try {
-        reply(id, tool.run(params?.arguments ?? {}, { roots: await ensureRoots() }))
+        reply(id, await tool.run(args, { roots: await ensureRoots() }))
       } catch (err) {
         reply(id, { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true })
       }

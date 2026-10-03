@@ -1,7 +1,7 @@
 {
   "name": "agentsmd-memory",
-  "version": "1.5.2",
-  "description": "Zero-dependency MCP server that gives AI agents a self-updating project memory in AGENTS.md. Returns merge instructions instead of mutating state, so every change is a reviewable diff.",
+  "version": "1.6.0",
+  "description": "Zero-dependency MCP server for concise, reviewable project memory. Conservative saves, evidence-based cleanup, and soft size budgets in AGENTS.md.",
   "type": "module",
   "bin": {
     "agentsmd-memory": "src/index.mjs"
@@ -14,7 +14,9 @@
     ".codex-plugin",
     ".mcp.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md",
+    "docs"
   ],
   "engines": {
     "node": ">=18"

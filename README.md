@@ -4,84 +4,36 @@
 [![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml)
 [![license](https://img.shields.io/npm/l/agentsmd-memory)](./LICENSE)
 
-MCP server for keeping project memory in `AGENTS.md`. Zero dependencies.
+MCP server for project notes in `AGENTS.md`. No dependencies. Requires Node.js 18+.
 
-The tools don't edit files. They resolve the nearest memory file and return instructions the agent carries out with its own Write/Edit tools, so every change — even creating the file — shows up as a reviewable git diff.
-
-## Tools
-
-- `memory_save` — record a durable fact (decision, convention, gotcha, non-obvious command).
-- `memory_forget` — remove a stale fact.
+Tools return a file path and editing instructions. The agent makes the edits with its own tools, so changes appear in your Git diff.
 
 ## Install
 
-Published on npm as [`agentsmd-memory`](https://www.npmjs.com/package/agentsmd-memory). Runs via `npx` — no global install needed. The config schema differs per client; expand yours below. On Windows, wrap the command as `cmd /c npx -y agentsmd-memory`.
-
-<details>
-<summary><b>OpenAI Codex — plugin (recommended)</b></summary>
-
-Installs the MCP tools and same per-turn `UserPromptSubmit` nudge used by Claude Code:
+### Codex
 
 ```sh
 codex plugin marketplace add https://github.com/jryom/agentsmd-memory.git
 codex plugin add agentsmd-memory@agentsmd-memory
 ```
 
-Restart Codex after installation. Review and enable the plugin hook with `/hooks`; Codex requires explicit trust for plugin hooks. Override reminder text with `MEMORY_NUDGE`.
+Restart Codex, then review and trust the plugin hook with `/hooks`.
 
-</details>
-
-<details>
-<summary><b>Claude Code — plugin (recommended)</b></summary>
-
-Installs the MCP tools **and** a per-turn nudge in one step (see [why the nudge helps](#per-turn-reminder); Claude Code delivers it via a `UserPromptSubmit` hook):
+### Claude Code
 
 ```sh
 claude plugin marketplace add jryom/agentsmd-memory
 claude plugin install agentsmd-memory@agentsmd-memory
 ```
 
-Override the reminder text with the `MEMORY_NUDGE` env var. No file config needed: the tools prefer `AGENTS.md` and fall back to `CLAUDE.md`, which Claude Code auto-loads (see [Config](#config)).
+Both plugins install the MCP tools and a reminder hook. Node.js must already be installed.
 
-</details>
+### opencode
 
-<details>
-<summary><b>Claude Code — MCP only</b></summary>
-
-Tools without the nudge:
-
-```sh
-claude mcp add --transport stdio memory -- npx -y agentsmd-memory
-```
-
-</details>
-
-<details>
-<summary><b>Claude Desktop / Cursor</b></summary>
-
-`claude_desktop_config.json` or `.cursor/mcp.json`:
+In `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "mcpServers": {
-    "memory": {
-      "command": "npx",
-      "args": ["-y", "agentsmd-memory"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>opencode</b></summary>
-
-`~/.config/opencode/opencode.json`. Note the differences: top-level `mcp` (not `mcpServers`), `command` is a single **array**, env goes in `environment` (not `env`).
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "memory": {
       "type": "local",
@@ -93,103 +45,46 @@ claude mcp add --transport stdio memory -- npx -y agentsmd-memory
 }
 ```
 
-The `plugin` line is recommended — see [per-turn reminder](#per-turn-reminder). It loads from npm by name, so it requires `agentsmd-memory >= 1.2.0`; restart opencode after editing.
+Restart opencode after editing. [Setup for Cursor, Claude Desktop, and Copilot](docs/clients.md).
 
-</details>
+## Tools
 
-<details>
-<summary><b>GitHub Copilot — VS Code</b></summary>
+| Tool | Purpose |
+| --- | --- |
+| `memory_save` | Assess and merge a fact or small batch of related facts |
+| `memory_forget` | Correct or remove outdated guidance |
+| `memory_review` | Clean up existing notes when requested or after a major change |
 
-`.vscode/mcp.json` (project) or your user `mcp.json`. Top-level key is `servers` and the type is `stdio`:
+The reminder asks the agent to consider saves at task completion. Most tasks should leave memory unchanged. Save decisions and gotchas that prevent future mistakes or expensive rediscovery; skip task summaries, duplicates, and facts already clear from code or docs.
 
-```json
-{
-  "servers": {
-    "memory": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "agentsmd-memory"]
-    }
-  }
-}
-```
+For example, keep the reason a migration must use an API instead of direct database edits. Skip a note that `npm test` runs tests.
 
-</details>
+Saves report the file's word count against a soft budget. The budget does not truncate files or override essential instructions. The agent still decides what to keep. Existing project rules that demand saving every discovery need updating too.
 
-<details>
-<summary><b>GitHub Copilot — CLI</b></summary>
+## Configuration
 
-```sh
-copilot mcp add memory -- npx -y agentsmd-memory
-```
-
-Or edit `~/.copilot/mcp-config.json` directly. Copilot CLI requires `type: "local"` and a `tools` field:
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "type": "local",
-      "command": "npx",
-      "args": ["-y", "agentsmd-memory"],
-      "tools": ["*"]
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><b>GitHub Copilot — coding agent (repo settings)</b></summary>
-
-Repo → **Settings → Copilot → MCP servers**. Same shape as the CLI (`type: "local"`, `tools` required). Any env vars must be prefixed `COPILOT_MCP_`.
-
-```json
-{
-  "mcpServers": {
-    "memory": {
-      "type": "local",
-      "command": "npx",
-      "args": ["-y", "agentsmd-memory"],
-      "tools": ["*"]
-    }
-  }
-}
-```
-
-</details>
-
-### Per-turn reminder
-
-The tools are prompt-driven — the agent only calls them if it decides to, which rarely happens mid-task. The package ships integrations for opencode, Claude Code, and Codex that inject a short reminder every turn (opencode via the system prompt; Claude Code and Codex via a `UserPromptSubmit` hook), so the agent reliably reaches for `memory_save`/`memory_forget`. The opencode plugin is enabled via the `"plugin": ["agentsmd-memory"]` line in the config above. Override reminder text with `MEMORY_NUDGE`.
-
-## Config
-
-| Env | Default | Purpose |
+| Environment variable | Default | Purpose |
 | --- | --- | --- |
-| `MEMORY_FILE` | _(unset)_ | Pin the target to a single file name, e.g. `GEMINI.md`. Bare name only. When set, disables the auto fallback below. |
-| `MEMORY_NUDGE` | built-in reminder | opencode/Claude Code/Codex plugin only. Overrides the per-turn reminder text. To skip injection, don't load or enable the plugin hook. |
+| `MEMORY_FILE` | unset | Use one file name, such as `GEMINI.md`, instead of the default candidates |
+| `MEMORY_MAX_WORDS` | `1000` | Soft file budget in whitespace-delimited words; positive integer |
+| `MEMORY_NUDGE` | built-in reminder | Replace the plugin reminder; tool guidance still applies |
 
-When `MEMORY_FILE` is unset the tools prefer `AGENTS.md`, then fall back to `CLAUDE.md`. So a Claude Code repo that only has `CLAUDE.md` (which Claude auto-loads; it doesn't read `AGENTS.md`) is found without any config, while `AGENTS.md` stays preferred for cross-tool sharing when present.
+Set file and budget options in the MCP server environment. Set the reminder override in the client environment. Disable the plugin hook to stop reminders.
 
-## Notes
+By default, resolution checks `AGENTS.md`, then `CLAUDE.md`, at each directory up to the nearest Git root. The nearest file wins, including a nearer `CLAUDE.md`. Without Git, the search reaches the filesystem root. If no file exists, the tool proposes a file at the Git root or starting directory; the agent can skip creating it.
 
-- Claude Code and Codex plugin installs launch the MCP server through unpinned
-  `npx -y agentsmd-memory`, intentionally following npm's `latest` tag. npm may
-  download package code on startup and caches fetched packages.
-- Workspace dir is resolved from MCP roots, else a `cwd` arg, else `process.cwd()`. From there it walks up to the git root; the nearest existing file wins, and at a given level `AGENTS.md` beats the `CLAUDE.md` fallback. When nothing exists, `AGENTS.md` is created at the git root.
-- The tools never write files. When no memory file exists, `memory_save` returns instructions to create one; the agent authors it with its own Write tool, so even bootstrapping shows up as a reviewable diff.
-- Saves are prompt-driven; the agent decides when to call them. Bundled integrations nudge it every turn.
+Pass an absolute `cwd` to select a project within an advertised MCP root. Otherwise, selection uses the first valid root, then a valid `cwd`, then the server's working directory.
 
-## Develop
+## Development
+
+Node.js LTS is pinned in `.tool-versions`. Use `asdf install`, `mise install`, or install that version directly.
 
 ```sh
 npm test
-npx @modelcontextprotocol/inspector npx -y agentsmd-memory
+npx @modelcontextprotocol/inspector node src/index.mjs
 ```
 
-Source: [github.com/jryom/agentsmd-memory](https://github.com/jryom/agentsmd-memory).
+[Local testing and releases](docs/development.md). [Changelog](CHANGELOG.md).
 
 ## License
 

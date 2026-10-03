@@ -17,7 +17,7 @@ function harness() {
   return { outbox, feed, last, find, server }
 }
 
-test("initialize echoes requested protocol version and server info", async () => {
+test("initialize accepts a supported protocol version and returns server info", async () => {
   const h = harness()
   await h.feed({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {} } })
   const res = h.last()
@@ -28,17 +28,84 @@ test("initialize echoes requested protocol version and server info", async () =>
   assert.deepEqual(res.result.capabilities, { tools: {} })
 })
 
+test("initialize negotiates a supported version instead of echoing unknown versions", async () => {
+  const h = harness()
+  await h.feed({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2099-01-01" } })
+  assert.equal(h.last().result.protocolVersion, PROTOCOL_VERSION)
+  await h.feed({ jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2024-11-05" } })
+  assert.equal(h.last().result.protocolVersion, "2024-11-05")
+})
+
+test("ping returns an empty result", async () => {
+  const h = harness()
+  await h.feed({ jsonrpc: "2.0", id: 1, method: "ping" })
+  assert.deepEqual(h.last().result, {})
+})
+
+test("late or unknown responses never receive a response", async () => {
+  const h = harness()
+  await h.feed({ jsonrpc: "2.0", id: "srv-99", result: { roots: [] } })
+  await h.feed({ jsonrpc: "2.0", id: "srv-98", error: { code: -32601, message: "Not found" } })
+  assert.equal(h.outbox.length, 0)
+})
+
+test("malformed envelopes and tool arguments receive errors", async () => {
+  const h = harness()
+  for (const msg of [null, [], { id: 1, method: "ping" }, { jsonrpc: "2.0", id: 1, method: 42 }]) {
+    await h.feed(msg)
+    assert.equal(h.last().error.code, -32600)
+  }
+  for (const args of [null, "wrong", []]) {
+    await h.feed({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "memory_save", arguments: args } })
+    assert.equal(h.last().error.code, -32602)
+  }
+})
+
+test("tool results await asynchronous implementations", async () => {
+  const outbox = []
+  const server = createServer({
+    send: (msg) => outbox.push(msg),
+    tools: [{ name: "async", run: async () => ({ content: [{ type: "text", text: "done" }] }) }],
+  })
+  await server.handleMessage({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "async" } })
+  assert.equal(outbox[0].result.content[0].text, "done")
+})
+
+test("roots changed during a pending fetch cannot restore stale workspace roots", async () => {
+  const oldDir = mkdtempSync(join(tmpdir(), "agentsmd-old-"))
+  const newDir = mkdtempSync(join(tmpdir(), "agentsmd-new-"))
+  try {
+    mkdirSync(join(oldDir, ".git"))
+    mkdirSync(join(newDir, ".git"))
+    const h = harness()
+    await h.feed({ jsonrpc: "2.0", id: 1, method: "initialize", params: { capabilities: { roots: { listChanged: true } } } })
+    await h.feed({ jsonrpc: "2.0", method: "notifications/initialized" })
+    const oldRequest = h.find((msg) => msg.method === "roots/list")
+    await h.feed({ jsonrpc: "2.0", method: "notifications/roots/list_changed" })
+    const call = h.feed({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "memory_save", arguments: { learning: "candidate" } } })
+    const newRequest = h.outbox.filter((msg) => msg.method === "roots/list").at(-1)
+    assert.notEqual(oldRequest.id, newRequest.id)
+    await h.feed({ jsonrpc: "2.0", id: oldRequest.id, result: { roots: [{ uri: pathToFileURL(oldDir).href }] } })
+    await h.feed({ jsonrpc: "2.0", id: newRequest.id, result: { roots: [{ uri: pathToFileURL(newDir).href }] } })
+    await call
+    assert.ok(h.find((msg) => msg.id === 9).result.content[0].text.includes(join(newDir, "AGENTS.md")))
+  } finally {
+    rmSync(oldDir, { recursive: true, force: true })
+    rmSync(newDir, { recursive: true, force: true })
+  }
+})
+
 test("initialize falls back to default protocol version", async () => {
   const h = harness()
   await h.feed({ jsonrpc: "2.0", id: 1, method: "initialize", params: { capabilities: {} } })
   assert.equal(h.last().result.protocolVersion, PROTOCOL_VERSION)
 })
 
-test("tools/list returns both tools with schemas", async () => {
+test("tools/list returns all tools with schemas", async () => {
   const h = harness()
   await h.feed({ jsonrpc: "2.0", id: 2, method: "tools/list" })
   const names = h.last().result.tools.map((t) => t.name).sort()
-  assert.deepEqual(names, ["memory_forget", "memory_save"])
+  assert.deepEqual(names, ["memory_forget", "memory_review", "memory_save"])
   for (const t of h.last().result.tools) {
     assert.equal(t.inputSchema.type, "object")
   }

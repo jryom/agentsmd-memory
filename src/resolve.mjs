@@ -1,8 +1,8 @@
-// Resolve the workspace dir (MCP roots > cwd arg > process.cwd()) and locate
+// Resolve a project within MCP roots, then cwd or process.cwd(), and locate
 // the memory file by walking up to the git root; nearest existing file wins.
 
-import { existsSync } from "node:fs"
-import { dirname, join, parse, isAbsolute, basename } from "node:path"
+import { existsSync, statSync } from "node:fs"
+import { dirname, join, parse, isAbsolute, basename, resolve, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
 export const DEFAULT_FILE = "AGENTS.md"
@@ -41,37 +41,58 @@ export function rootUriToPath(uri) {
 }
 
 export function resolveBaseDir({ roots, args } = {}) {
-  if (Array.isArray(roots)) {
-    for (const r of roots) {
-      const p = rootUriToPath(r?.uri)
-      if (p && existsSync(p)) return p
-    }
+  const directories = Array.isArray(roots)
+    ? roots.map((r) => rootUriToPath(r?.uri)).filter((p) => validDirectory(p)).map((p) => resolve(p))
+    : []
+  const cwd = validDirectory(args?.cwd) ? resolve(args.cwd) : null
+  if (cwd && directories.some((dir) => {
+    const path = relative(dir, cwd)
+    return path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  })) {
+    return cwd
   }
-  if (args?.cwd && existsSync(args.cwd)) return args.cwd
-  return process.cwd()
+  return directories[0] || cwd || process.cwd()
 }
 
-// Walk up from `start` to the filesystem root. At each level, try the candidate
+function validDirectory(path) {
+  if (typeof path !== "string" || !isAbsolute(path)) return false
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function validFile(path) {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+// Walk up from `start` to the git root or filesystem root. Try the candidate
 // names in preference order; the nearest existing file wins, and within a level
 // AGENTS.md beats CLAUDE.md. When none exist, create the preferred name at the
 // git root (or `start` if no .git is found).
 export function resolveMemoryFile(start, fileNames = memoryFileNames()) {
   const names = Array.isArray(fileNames) ? fileNames : [fileNames]
-  const { root } = parse(start)
-  let dir = start
-  let projectRoot = start
-  let foundRoot = false
+  let dir = resolve(start)
+  const { root } = parse(dir)
+  let projectRoot = dir
   while (true) {
     for (const name of names) {
       const candidate = join(dir, name)
-      if (existsSync(candidate)) return { path: candidate, exists: true }
+      if (validFile(candidate)) return { path: candidate, exists: true }
     }
-    if (!foundRoot && existsSync(join(dir, ".git"))) {
+    if (existsSync(join(dir, ".git"))) {
       projectRoot = dir
-      foundRoot = true
+      break
     }
     if (dir === root) break
     dir = dirname(dir)
   }
-  return { path: join(projectRoot, names[0]), exists: false }
+  const path = join(projectRoot, names[0])
+  if (existsSync(path)) throw new Error(`Memory path is not a regular file: ${path}`)
+  return { path, exists: false }
 }

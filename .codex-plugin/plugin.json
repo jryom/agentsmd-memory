@@ -1,7 +1,7 @@
 {
   "name": "agentsmd-memory",
-  "version": "1.5.2",
-  "description": "Self-updating project memory in AGENTS.md (falls back to CLAUDE.md). Bundles memory_save/memory_forget MCP tools and a per-turn reminder.",
+  "version": "1.6.0",
+  "description": "Keep project memory concise through selective saves, evidence-based cleanup, and reviewable edits.",
   "author": {
     "name": "jryom",
     "url": "https://github.com/jryom"
@@ -9,20 +9,30 @@
   "homepage": "https://github.com/jryom/agentsmd-memory",
   "repository": "https://github.com/jryom/agentsmd-memory",
   "license": "MIT",
-  "keywords": ["mcp", "agents.md", "memory", "ai", "agent", "codex"],
+  "keywords": [
+    "mcp",
+    "agents.md",
+    "memory",
+    "ai",
+    "agent",
+    "codex"
+  ],
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AGENTS.md Memory",
-    "shortDescription": "Keep durable project memory current",
-    "longDescription": "Adds memory_save and memory_forget tools plus a per-turn reminder so Codex keeps AGENTS.md current through reviewable edits.",
+    "shortDescription": "Keep project memory useful and concise",
+    "longDescription": "Adds memory_save, memory_forget, and memory_review with conservative admission rules and soft size budgets. Memory edits stay reviewable.",
     "developerName": "jryom",
     "category": "Productivity",
-    "capabilities": ["MCP tools", "Lifecycle hooks"],
+    "capabilities": [
+      "MCP tools",
+      "Lifecycle hooks"
+    ],
     "websiteURL": "https://github.com/jryom/agentsmd-memory",
     "defaultPrompt": [
-      "Save a durable project fact to AGENTS.md.",
-      "Remove stale guidance from AGENTS.md.",
-      "Review project memory for stale facts."
+      "Save only project learnings likely to prevent future mistakes or substantial repeated work.",
+      "Correct outdated project guidance.",
+      "Review and trim bloated project memory while preserving essential instructions."
     ],
     "brandColor": "#10A37F"
   }

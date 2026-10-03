@@ -1,14 +1,17 @@
 {
   "name": "agentsmd-memory",
-  "owner": { "name": "jryom", "url": "https://github.com/jryom" },
+  "owner": {
+    "name": "jryom",
+    "url": "https://github.com/jryom"
+  },
   "metadata": {
-    "description": "Self-updating project memory in AGENTS.md via reviewable diffs."
+    "description": "Concise project memory through selective, reviewable edits."
   },
   "plugins": [
     {
       "name": "agentsmd-memory",
       "source": "./",
-      "description": "Self-updating project memory in AGENTS.md, with MCP tools and a per-turn nudge."
+      "description": "Memory tools and a conservative task-completion reminder for keeping project guidance useful and concise."
     }
   ]
 }

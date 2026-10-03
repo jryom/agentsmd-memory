@@ -169,3 +169,59 @@ test("resolveMemoryFile creates AGENTS.md at git root when nothing exists", () =
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test("project cwd selects a nested project or the matching workspace root", () => {
+  const first = tmp()
+  const second = tmp()
+  try {
+    const sub = join(second, "project")
+    mkdirSync(sub)
+    const roots = [first, second].map((dir) => ({ uri: pathToFileURL(dir).href }))
+    assert.equal(resolveBaseDir({ roots, args: { cwd: sub } }), sub)
+    assert.equal(resolveBaseDir({ roots, args: { cwd: second } }), second)
+  } finally {
+    rmSync(first, { recursive: true, force: true })
+    rmSync(second, { recursive: true, force: true })
+  }
+})
+
+test("resolver ignores file paths and relative cwd arguments", () => {
+  const dir = tmp()
+  try {
+    const file = join(dir, "file")
+    writeFileSync(file, "content")
+    assert.equal(resolveBaseDir({ roots: [{ uri: pathToFileURL(file).href }], args: { cwd: file } }), process.cwd())
+    assert.equal(resolveBaseDir({ args: { cwd: "." } }), process.cwd())
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("git boundary prevents unrelated parent memory being selected", () => {
+  const parent = tmp()
+  try {
+    writeFileSync(join(parent, "AGENTS.md"), "# Parent\n")
+    const project = join(parent, "project")
+    mkdirSync(join(project, ".git"), { recursive: true })
+    assert.deepEqual(resolveMemoryFile(project), { path: join(project, "AGENTS.md"), exists: false })
+    writeFileSync(join(project, "CLAUDE.md"), "# Project\n")
+    assert.deepEqual(resolveMemoryFile(project), { path: join(project, "CLAUDE.md"), exists: true })
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
+  }
+})
+
+test("worktree .git files bound resolution and directories are not memory files", () => {
+  const parent = tmp()
+  try {
+    writeFileSync(join(parent, "AGENTS.md"), "# Parent\n")
+    const project = join(parent, "project")
+    mkdirSync(join(project, "AGENTS.md"), { recursive: true })
+    writeFileSync(join(project, ".git"), "gitdir: /elsewhere\n")
+    assert.throws(() => resolveMemoryFile(project), /not a regular file/)
+    rmSync(join(project, "AGENTS.md"), { recursive: true })
+    assert.deepEqual(resolveMemoryFile(project), { path: join(project, "AGENTS.md"), exists: false })
+  } finally {
+    rmSync(parent, { recursive: true, force: true })
+  }
+})

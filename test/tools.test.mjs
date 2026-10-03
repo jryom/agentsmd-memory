@@ -20,7 +20,8 @@ test("memory_save returns create instructions for a new file, no write", () => {
     assert.equal(res.isError, false)
     const file = join(dir, "AGENTS.md")
     assert.ok(!existsSync(file)) // not written; agent creates it
-    assert.match(res.content[0].text, /Create one at/)
+    assert.match(res.content[0].text, /creating one at/)
+    assert.match(res.content[0].text, /Otherwise, leave files unchanged/)
     assert.match(res.content[0].text, /uses pnpm not npm/)
     assert.match(res.content[0].text, /Write tool/)
   } finally {
@@ -36,7 +37,7 @@ test("memory_save on existing file returns merge instructions, no write", () => 
     writeFileSync(file, before)
     const res = save.run({ learning: "deploy via 'make ship'", cwd: dir }, {})
     assert.equal(res.isError, false)
-    assert.match(res.content[0].text, /Integrate this fact into/)
+    assert.match(res.content[0].text, /Assess this candidate learning for/)
     assert.match(res.content[0].text, /deploy via 'make ship'/)
     assert.equal(readFileSync(file, "utf8"), before) // untouched
   } finally {
@@ -111,7 +112,7 @@ test("memory_save integrates into an existing CLAUDE.md when no AGENTS.md", () =
     writeFileSync(file, before)
     const res = save.run({ learning: "prefers pnpm", cwd: dir }, {})
     assert.equal(res.isError, false)
-    assert.match(res.content[0].text, /Integrate this fact into/)
+    assert.match(res.content[0].text, /Assess this candidate learning for/)
     assert.match(res.content[0].text, /CLAUDE\.md/)
     assert.equal(readFileSync(file, "utf8"), before) // untouched
   } finally {
