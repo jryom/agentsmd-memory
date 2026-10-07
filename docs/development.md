@@ -23,6 +23,6 @@ The plugin exposes a plain V2 definition (`id`/`setup`) and V1 object entrypoint
 
 1. Run `npm version <version> --no-git-tag-version`; the version hook synchronizes both plugin manifests. After a manual package-version edit, run `npm run sync-version` instead.
 2. Update `CHANGELOG.md`, run `npm test`, and inspect `npm pack --dry-run --json`.
-3. Push to `main`. CI publishes the version to npm after checks pass, unless it is already published.
+3. Push to `main`. After checks pass, CI publishes the version to npm, then creates a GitHub release tagged `v<version>` with generated release notes. Existing npm versions and GitHub releases are skipped independently, so reruns can recover a missing GitHub release without republishing npm.
 
 Plugin hooks come from the installed marketplace package; the MCP server follows npm's `latest` tag. Plugin users should update their marketplace installation and restart the client after a release. Codex may require renewed trust for changed hooks.
