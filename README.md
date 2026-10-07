@@ -4,9 +4,9 @@
 [![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml)
 [![license](https://img.shields.io/npm/l/agentsmd-memory)](./LICENSE)
 
-MCP server for project notes in `AGENTS.md`. No dependencies. Requires Node.js 24+.
+MCP server for project notes in `AGENTS.md`, with opt-in structured memory. Requires Node.js 24+.
 
-Tools return a file path and editing instructions. The agent makes the edits with its own tools, so changes appear in your Git diff.
+Entry-point tools return editing instructions. Structured-memory tools write sidecar files directly, using locking and atomic replacement. Knowledge changes appear in your Git diff; usage signals stay local.
 
 ## Install
 
@@ -56,6 +56,9 @@ V2 plugin provides native memory tools and the reminder; no separate MCP server 
 | `memory_save` | Assess and merge a fact or small batch of related facts |
 | `memory_forget` | Correct or remove outdated guidance |
 | `memory_review` | Clean up existing notes when requested or after a major change |
+| `memory_recall` | Retrieve task-relevant structured facts, when opted in |
+| `memory_fact` | Add, promote, correct, or archive a structured fact |
+| `memory_feedback` | Record verified usefulness or contradiction in Git-ignored local telemetry |
 
 The reminder asks the agent to consider saves at task completion. Most tasks should leave memory unchanged. Save decisions and gotchas that prevent future mistakes or expensive rediscovery; skip task summaries, duplicates, and facts already clear from code or docs.
 

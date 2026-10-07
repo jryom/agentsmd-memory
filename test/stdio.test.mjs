@@ -7,6 +7,9 @@ import { once } from "node:events"
 import { fileURLToPath } from "node:url"
 import { pathToFileURL } from "node:url"
 import { project } from "./helpers.mjs"
+import { writeFileSync } from "node:fs"
+import { join } from "node:path"
+import { lifecycle } from "../src/lifecycle.mjs"
 
 test("stdio server reports malformed JSON and continues serving requests", () => {
   const output = execFileSync(process.execPath, [fileURLToPath(new URL("../src/index.mjs", import.meta.url))], {
@@ -16,6 +19,30 @@ test("stdio server reports malformed JSON and continues serving requests", () =>
   assert.equal(output[0].error.code, -32700)
   assert.equal(output[0].id, null)
   assert.deepEqual(output[1], { jsonrpc: "2.0", id: 7, result: {} })
+})
+
+test("stdio lifecycle tools persist facts and ignored telemetry", (t) => {
+  const cwd = project(t)
+  execFileSync("git", ["init", "--quiet", cwd])
+  writeFileSync(join(cwd, ".gitignore"), ".agents-memory.local.json\n")
+  writeFileSync(join(cwd, ".agents-memory.json"), '{"version":1,"facts":[]}')
+  const call = (name, args) => {
+    const output = execFileSync(process.execPath, [fileURLToPath(new URL("../src/index.mjs", import.meta.url))], {
+      input: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { capabilities: {} } }) + "\n" +
+        JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name, arguments: { cwd, ...args } } }) + "\n",
+      encoding: "utf8",
+    }).trim().split("\n").map((line) => JSON.parse(line))
+    return output.find((message) => message.id === 2).result
+  }
+  assert.equal(call("memory_fact", {
+    action: "add", id: "api", expectedRevision: lifecycle({ cwd }, {}).revision,
+    fact: "Use migration API", scope: "database", reason: "Avoid corruption", evidence: ["docs/migrations.md"], verification: "Checked migration docs",
+  }).isError, false)
+  assert.equal(call("memory_feedback", { id: "api", task: "stdio-task", outcome: "useful", verification: "Verified API avoided direct edits" }).isError, false)
+  assert.equal(lifecycle({ cwd }, {}).signals.length, 1)
+  assert.match(call("memory_recall", { query: "migration" }).content[0].text, /Use migration API/)
+  assert.equal(call("memory_fact", { action: "archive", id: "api", expectedRevision: "stale", verification: "Obsolete" }).isError, true)
+  assert.equal(lifecycle({ cwd }, {}).facts[0].status, "candidate")
 })
 
 for (const mode of ["success", "error", "timeout"]) {

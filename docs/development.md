@@ -5,11 +5,12 @@ Node.js 24+ is required. Development, CI checks, and publishing use the Node.js 
 ## Local testing
 
 ```sh
+npm ci
 npm test
 npm pack --ignore-scripts
 ```
 
-Tests cover file selection, tool responses, protocol handling, reminder hooks, plugin versions, and npm package contents.
+Tests cover file selection, tool responses, protocol handling, reminder hooks, plugin versions, and npm package contents. The lifecycle prototype additionally tests protected operations, stale revisions, atomic writes, local telemetry privacy, and concurrent writers.
 
 To test local server changes in a client, set the MCP command to `node` and its args to `["/absolute/path/to/agentsmd-memory/src/index.mjs"]` in a temporary configuration. The repository's `.mcp.json` runs `npx -y agentsmd-memory`, which loads the published npm package even when the plugin itself comes from a local checkout.
 

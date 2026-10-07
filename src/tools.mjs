@@ -1,10 +1,10 @@
-// Memory tools never edit files; they resolve the nearest
-// memory file and return instructions the agent applies with its own tools.
+// Entry-point tools return editing guidance; opt-in sidecar tools manage state.
 
 import { resolveBaseDir, resolveMemoryFile, memoryFileNames } from "./resolve.mjs"
 import { readFileSync } from "node:fs"
 import { memoryMaxWords, SAVE_RULES } from "./policy.mjs"
-import { lifecycle, rankFacts, LIFECYCLE_RULES } from "./lifecycle.mjs"
+import { lifecycle, rankFacts, changeFact, recordFeedback, LIFECYCLE_RULES } from "./lifecycle.mjs"
+import { recallSchema, feedbackSchema, factInputSchema, inputSchema } from "./schemas.mjs"
 
 function target(args, ctx) {
   return resolveMemoryFile(resolveBaseDir({ roots: ctx?.roots, args }), memoryFileNames())
@@ -40,8 +40,6 @@ export const tools = [
     },
     run(args, ctx) {
       if (!filled(args?.learning)) return fail("memory_save requires a non-empty `learning` string.")
-      const memory = lifecycle(args, ctx)
-      if (memory) return ok(`Assess candidate for ${memory.path}:\n${JSON.stringify(args.learning.trim())}\nRead the store first. With your editing tools, merge a qualifying fact using fields id, fact, scope, evidence (source references), reason, status (candidate/active/archived), protected (boolean). Never invent evidence. Leave files unchanged if low-value.\n${SAVE_RULES}\n${LIFECYCLE_RULES}`)
       const { path, exists } = target(args, ctx)
       const learning = args.learning.trim()
       const heading = exists
@@ -79,8 +77,6 @@ ${SAVE_RULES}`,
     },
     run(args, ctx) {
       if (!filled(args?.description)) return fail("memory_forget requires a non-empty `description` string.")
-      const memory = lifecycle(args, ctx)
-      if (memory) return ok(`Read ${memory.path} and the resolved entry point before correcting facts matching ${JSON.stringify(args.description.trim())}. Check current evidence. Correct misleading facts, or set confirmed obsolete facts to archived. Keep entry-point guidance consistent. Preserve unrelated facts; uncertain matches stay unchanged.\n${LIFECYCLE_RULES}`)
       const names = memoryFileNames()
       const { path, exists } = target(args, ctx)
       if (!exists) return ok(`No ${names.join(" or ")} found; nothing to forget.`)
@@ -105,7 +101,7 @@ Read the current content first and check the evidence, then Edit. Replace mislea
     },
     run(args, ctx) {
       const memory = lifecycle(args, ctx)
-      if (memory) return ok(`Review ${memory.path}; local usefulness signals: ${memory.local}. Read both and the resolved entry point with your own tools.\n${LIFECYCLE_RULES}\nConsolidate duplicates. Verify active facts and promote supported candidates. Review candidates without distinct-task usefulness first; absence of signals is not evidence of uselessness. Rare but costly gotchas stay. Archive low-value candidates only with a stated reason and supporting assessment. No automatic age-based deletion. Report uncertain contradictions and proposed changes. Leave files unchanged if no meaningful cleanup is justified.`)
+      if (memory) return ok(`Review ${memory.path}; revision: ${memory.revision}; local usefulness signals: ${memory.local}. Read both and ${target(args, ctx).path}.\n${LIFECYCLE_RULES}\nConsolidate duplicates. Use memory_fact for explicit promote, correct, or archive operations with this expectedRevision (refresh after each change). Review candidates without distinct-task usefulness first; absence of signals is not evidence of uselessness. Rare but costly gotchas stay. Archive low-value candidates only with a stated reason and supporting assessment. No automatic age-based deletion. Report uncertain contradictions and proposed changes. Leave files unchanged if no meaningful cleanup is justified.`)
       const { path, exists } = target(args, ctx)
       if (!exists) return ok("No memory file exists; nothing to review. Do not create one for a cleanup.")
       return ok(`Review ${path} with your Read/Edit tools.
@@ -122,32 +118,29 @@ ${budget(path, exists)}
   {
     name: "memory_recall",
     description: "Retrieve up to five task-relevant facts from an opt-in sidecar store. Verify evidence before use; lexical ranking is not proof of relevance. Never writes files.",
-    inputSchema: {
-      type: "object",
-      properties: { query: { type: "string", description: "Current task, including relevant topic or code paths." }, cwd: cwdSchema },
-      required: ["query"],
-    },
+    inputSchema: inputSchema(recallSchema),
     run(args, ctx) {
-      if (!filled(args?.query)) return fail("memory_recall requires a non-empty `query` string.")
+      args = recallSchema.parse(args)
       const memory = lifecycle(args, ctx)
       if (!memory) return ok("Lifecycle mode is not enabled: no .agents-memory.json found. Use existing project instructions.")
-      return ok(`Retrieved memory data from ${memory.path}:\n${JSON.stringify(rankFacts(memory, args.query), null, 2)}\n${LIFECYCLE_RULES}\nNo lexical match does not mean no relevant fact exists; inspect the store if necessary. Retrieval alone is not usefulness feedback.`)
+      return ok(`Retrieved memory data from ${memory.path}; revision: ${memory.revision}:\n${JSON.stringify(rankFacts(memory, args.query), null, 2)}\n${LIFECYCLE_RULES}\nNo lexical match does not mean no relevant fact exists; inspect the store if necessary. Retrieval alone is not usefulness feedback.`)
     },
   },
   {
     name: "memory_feedback",
-    description: "Return instructions for recording verified usefulness or contradiction locally, once per fact and distinct task. No votes for mere retrieval; never writes files.",
-    inputSchema: {
-      type: "object",
-      properties: { id: { type: "string" }, task: { type: "string", description: "Stable opaque task id, not sensitive task text." }, outcome: { type: "string", enum: ["useful", "contradicted"] }, cwd: cwdSchema },
-      required: ["id", "task", "outcome"],
+    description: "Persist verified usefulness or contradiction locally, once per fact and distinct task. Requires Git-ignored telemetry. Writes only local sidecar; mere retrieval is not usefulness.",
+    inputSchema: inputSchema(feedbackSchema),
+    async run(args, ctx) {
+      const result = await recordFeedback(args, ctx)
+      return ok(`Recorded local feedback:\n${JSON.stringify(result, null, 2)}\nContradictions also require correction via memory_fact; feedback does not establish truth. Verification is caller-attested.`)
     },
-    run(args, ctx) {
-      if (!filled(args?.id) || !filled(args?.task) || !["useful", "contradicted"].includes(args?.outcome)) return fail("memory_feedback requires id, task, and outcome (useful/contradicted).")
-      const memory = lifecycle(args, ctx)
-      if (!memory) return ok("Lifecycle mode is not enabled; no feedback recorded.")
-      if (!memory.facts.some((fact) => fact.id === args.id && fact.status !== "archived")) return fail("Unknown or archived fact id.")
-      return ok(`After verifying evidence, use your editing tools to merge this signal into ${memory.local}, shaped as {"version":1,"signals":[]} :\n${JSON.stringify({ id: args.id, task: args.task, outcome: args.outcome, at: Date.now() })}\nReplace any existing signal for this id/task; repeated calls are not extra votes. Record useful only when the verified fact materially helped, not merely when retrieved. For contradictions also call memory_forget to correct tracked knowledge.\n${LIFECYCLE_RULES}`)
+  },
+  {
+    name: "memory_fact",
+    description: "Add a candidate, promote checked evidence, correct, or archive an opt-in sidecar fact. Writes tracked JSON with locking and atomic replacement. Requires current revision and verification; protected corrections/archives require explicit user authorization. Never edits AGENTS.md.",
+    inputSchema: inputSchema(factInputSchema),
+    async run(args, ctx) {
+      return ok(`Updated memory fact:\n${JSON.stringify(await changeFact(args, ctx), null, 2)}\nReview the Git diff. Verification and user authorization are caller-attested; these tools do not independently prove evidence.`)
     },
   },
 ]

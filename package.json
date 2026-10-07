@@ -1,7 +1,7 @@
 {
   "name": "agentsmd-memory",
   "version": "1.7.0",
-  "description": "Zero-dependency MCP server for concise, reviewable project memory. Conservative saves, evidence-based cleanup, and soft size budgets in AGENTS.md.",
+  "description": "Reviewable project memory: conservative AGENTS.md guidance and opt-in structured facts with relevant retrieval and evidence-based lifecycle operations.",
   "type": "module",
   "bin": {
     "agentsmd-memory": "src/index.mjs"
@@ -52,5 +52,10 @@
     "url": "https://github.com/jryom/agentsmd-memory/issues"
   },
   "license": "MIT",
-  "author": "jryom"
+  "author": "jryom",
+  "dependencies": {
+    "proper-lockfile": "^4.1.2",
+    "write-file-atomic": "^8.0.0",
+    "zod": "^4.6.5"
+  }
 }

@@ -24,7 +24,7 @@ test("npm package includes server, shared policy, and complete plugin integratio
   for (const path of [
     "package.json", "README.md", "CHANGELOG.md", "LICENSE",
     "docs/clients.md", "docs/development.md", "docs/evaluation.md", "scripts/sync-version.mjs",
-    "src/index.mjs", "src/server.mjs", "src/tools.mjs", "src/resolve.mjs", "src/policy.mjs", "src/plugin.mjs",
+     "src/index.mjs", "src/server.mjs", "src/tools.mjs", "src/resolve.mjs", "src/policy.mjs", "src/plugin.mjs", "src/lifecycle.mjs", "src/schemas.mjs",
     "hooks/hooks.json", "hooks/nudge.mjs", ".mcp.json",
     ".codex-plugin/plugin.json", ".claude-plugin/plugin.json", ".claude-plugin/marketplace.json",
   ]) assert.ok(files.has(path), `missing packaged file: ${path}`)
