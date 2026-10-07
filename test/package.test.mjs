@@ -5,16 +5,20 @@ import { fileURLToPath } from "node:url"
 import { join } from "node:path"
 import { project } from "./helpers.mjs"
 
+function packageResult(output) {
+  const packed = JSON.parse(output)
+  return Array.isArray(packed) ? packed[0] : (packed.files ? packed : Object.values(packed)[0])
+}
+
 test("npm package includes server, shared policy, and complete plugin integrations", () => {
   const cli = process.env.npm_execpath
   const command = cli ? process.execPath : (process.platform === "win32" ? "npm.cmd" : "npm")
   const args = [...(cli ? [cli] : []), "pack", "--dry-run", "--ignore-scripts", "--json"]
-  const packed = JSON.parse(execFileSync(command, args, {
+  const pkg = packageResult(execFileSync(command, args, {
     cwd: fileURLToPath(new URL("..", import.meta.url)),
     encoding: "utf8",
     shell: !cli && process.platform === "win32",
   }))
-  const pkg = Array.isArray(packed) ? packed[0] : (packed.files ? packed : Object.values(packed)[0])
   assert.ok(Array.isArray(pkg.files), "npm pack must return a package file listing")
   const files = new Set(pkg.files.map((file) => file.path))
   for (const path of [
@@ -37,7 +41,7 @@ test("packed package installs offline and serves stdio requests", (t) => {
     cwd: fileURLToPath(new URL("..", import.meta.url)), encoding: "utf8",
     shell: !cli && process.platform === "win32",
   })
-  const [packed] = JSON.parse(npm(["pack", "--ignore-scripts", "--json", "--pack-destination", directory]))
+  const packed = packageResult(npm(["pack", "--ignore-scripts", "--json", "--pack-destination", directory]))
   npm(["install", "--offline", "--ignore-scripts", "--no-audit", "--no-fund", "--prefix", directory, join(directory, packed.filename)])
   const output = execFileSync(process.execPath, [join(directory, "node_modules/agentsmd-memory/src/index.mjs")], {
     input: '{"jsonrpc":"2.0","id":1,"method":"ping"}\n', encoding: "utf8",
