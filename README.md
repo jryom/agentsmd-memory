@@ -32,12 +32,16 @@ Both plugins install the MCP tools and a reminder hook. Node.js must already be 
 
 Plugin supports OpenCode V2 and V1 1.18.29+. Configuration below is for V2; [V1 configuration](docs/clients.md#opencode-v1).
 
-In `~/.config/opencode/opencode.json`:
+```sh
+opencode plugin add github:jryom/agentsmd-memory
+```
+
+Or add the GitHub package reference to `~/.config/opencode/opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["agentsmd-memory"]
+  "plugins": ["github:jryom/agentsmd-memory"]
 }
 ```
 
