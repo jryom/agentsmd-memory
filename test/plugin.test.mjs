@@ -1,10 +1,11 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import AgentsmdMemoryPlugin, { AgentsmdMemoryPlugin as named } from "../src/plugin.mjs"
+import plugin, { AgentsmdMemoryPlugin } from "../src/plugin.mjs"
 
-test("plugin exports the same factory as default and named", () => {
-  assert.equal(AgentsmdMemoryPlugin, named)
-  assert.equal(typeof AgentsmdMemoryPlugin, "function")
+test("plugin exposes V2 setup and the V1 server factory", () => {
+  assert.equal(plugin.id, "agentsmd-memory")
+  assert.equal(plugin.server, AgentsmdMemoryPlugin)
+  assert.equal(typeof plugin.setup, "function")
 })
 
 test("system.transform hook pushes a nudge onto output.system", async () => {

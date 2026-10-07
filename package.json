@@ -1,6 +1,6 @@
 {
   "name": "agentsmd-memory",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Zero-dependency MCP server for concise, reviewable project memory. Conservative saves, evidence-based cleanup, and soft size budgets in AGENTS.md.",
   "type": "module",
   "bin": {
@@ -10,6 +10,7 @@
   "files": [
     "src",
     "hooks",
+    "scripts",
     ".claude-plugin",
     ".codex-plugin",
     ".mcp.json",
@@ -19,12 +20,14 @@
     "docs"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test \"test/*.test.mjs\"",
     "start": "node src/index.mjs",
-    "prepublishOnly": "node --test"
+    "version": "node scripts/sync-version.mjs",
+    "sync-version": "node scripts/sync-version.mjs",
+    "prepublishOnly": "npm test"
   },
   "keywords": [
     "mcp",

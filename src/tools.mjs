@@ -1,4 +1,4 @@
-// memory_save and memory_forget. Neither edits files; they resolve the nearest
+// Memory tools never edit files; they resolve the nearest
 // memory file and return instructions the agent applies with its own tools.
 
 import { resolveBaseDir, resolveMemoryFile, memoryFileNames } from "./resolve.mjs"
@@ -20,6 +20,7 @@ This is guidance, not enforced truncation or a token count. Preserve essential c
 const ok = (text) => ({ content: [{ type: "text", text }], isError: false })
 const fail = (text) => ({ content: [{ type: "text", text }], isError: true })
 const filled = (v) => typeof v === "string" && v.trim().length > 0
+const cwdSchema = { type: "string", description: "Absolute existing project directory within advertised workspace roots. Required when multiple roots are available." }
 
 export const tools = [
   {
@@ -32,7 +33,7 @@ export const tools = [
       type: "object",
       properties: {
         learning: { type: "string", description: "Concise candidate fact, or a small batch of related facts, that would prevent future mistakes or substantial repeated work." },
-        cwd: { type: "string", description: "Absolute path of the current project directory." },
+        cwd: cwdSchema,
       },
       required: ["learning"],
     },
@@ -40,24 +41,17 @@ export const tools = [
       if (!filled(args?.learning)) return fail("memory_save requires a non-empty `learning` string.")
       const { path, exists } = target(args, ctx)
       const learning = args.learning.trim()
-      if (!exists) {
-        return ok(
-          `No memory file exists. Assess this candidate learning before creating one at ${path} with your Write tool:
-${JSON.stringify(learning)}
-
-If it passes the admission rules below, create a minimal file with a title and only the sections needed. Otherwise, leave files unchanged.
-
-${budget(path, exists)}
-
-Rules:
-${SAVE_RULES}`,
-        )
-      }
+      const heading = exists
+        ? `Assess this candidate learning for ${path}:`
+        : `No memory file exists. Assess this candidate learning before creating one at ${path} with your Write tool:`
+      const action = exists
+        ? "Read the current content first, then Edit only if a useful change remains after applying the admission rules."
+        : "If it passes the admission rules below, create a minimal file with a title and only the sections needed. Otherwise, leave files unchanged."
       return ok(
-        `Assess this candidate learning for ${path}:
+        `${heading}
 ${JSON.stringify(learning)}
 
-Read the current content first, then Edit only if a useful change remains after applying the admission rules.
+${action}
 
 ${budget(path, exists)}
 
@@ -76,7 +70,7 @@ ${SAVE_RULES}`,
       type: "object",
       properties: {
         description: { type: "string", description: "Natural-language description of the fact(s) to remove." },
-        cwd: { type: "string", description: "Absolute path of the current project directory." },
+        cwd: cwdSchema,
       },
       required: ["description"],
     },
@@ -101,7 +95,7 @@ Read the current content first and check the evidence, then Edit. Replace mislea
     inputSchema: {
       type: "object",
       properties: {
-        cwd: { type: "string", description: "Absolute path of the current project directory." },
+        cwd: cwdSchema,
       },
     },
     run(args, ctx) {

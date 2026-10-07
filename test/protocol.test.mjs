@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { createServer, PROTOCOL_VERSION } from "../src/server.mjs"
+import { project } from "./helpers.mjs"
 
 // Build a server whose outbound messages land in `outbox`, with a helper to
 // drive inbound messages.
@@ -26,6 +27,23 @@ test("initialize accepts a supported protocol version and returns server info", 
   assert.equal(res.result.serverInfo.name, "agentsmd-memory")
   assert.equal(res.result.serverInfo.version, "1.2.3")
   assert.deepEqual(res.result.capabilities, { tools: {} })
+})
+
+test("failed roots discovery blocks tools until roots are refreshed", async (t) => {
+  const h = harness()
+  await h.feed({ jsonrpc: "2.0", id: 1, method: "initialize", params: { capabilities: { roots: {} } } })
+  await h.feed({ jsonrpc: "2.0", method: "notifications/initialized" })
+  const req = h.find((msg) => msg.method === "roots/list")
+  await h.feed({ jsonrpc: "2.0", id: req.id, error: { code: -32603, message: "failed" } })
+  await h.feed({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "memory_review" } })
+  assert.equal(h.last().result.isError, true)
+  assert.match(h.last().result.content[0].text, /Workspace discovery failed/)
+  await h.feed({ jsonrpc: "2.0", method: "notifications/roots/list_changed" })
+  const call = h.feed({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "memory_review" } })
+  const latest = h.outbox.filter((msg) => msg.method === "roots/list").at(-1)
+  await h.feed({ jsonrpc: "2.0", id: latest.id, result: { roots: [{ uri: pathToFileURL(project(t)).href }] } })
+  await call
+  assert.equal(h.last().result.isError, false)
 })
 
 test("initialize negotiates a supported version instead of echoing unknown versions", async () => {
@@ -130,6 +148,53 @@ test("notifications get no response", async () => {
   // request (when client declared the capability). With no capability declared,
   // there must be zero outbound messages.
   assert.equal(h.outbox.length, 0)
+})
+
+test("invalid ids are rejected and request methods without ids receive no reply", async () => {
+  const h = harness()
+  for (const id of [null, {}, [], true, Infinity]) {
+    await h.feed({ jsonrpc: "2.0", id, method: "ping" })
+    assert.equal(h.last().error.code, -32600)
+    assert.equal(h.last().id, null)
+  }
+  h.outbox.length = 0
+  for (const method of ["initialize", "ping", "tools/list", "tools/call"]) {
+    await h.feed({ jsonrpc: "2.0", method })
+  }
+  assert.equal(h.outbox.length, 0)
+})
+
+test("malformed params receive errors, not silently swallowed failures", async () => {
+  const h = harness()
+  for (const params of [null, [], "wrong", 42]) {
+    await h.feed({ jsonrpc: "2.0", id: 1, method: "tools/call", params })
+    assert.equal(h.last().error.code, -32602)
+  }
+})
+
+test("invalid cwd returns an actionable tool error", async () => {
+  const h = harness()
+  await h.feed({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
+    name: "memory_save", arguments: { learning: "candidate", cwd: "/no/such/project" },
+  } })
+  assert.equal(h.last().result.isError, true)
+  assert.match(h.last().result.content[0].text, /cwd must be an absolute path/)
+})
+
+test("invalid MEMORY_FILE returns an actionable tool error", async () => {
+  const previous = process.env.MEMORY_FILE
+  try {
+    process.env.MEMORY_FILE = "../../etc/passwd"
+    const h = harness()
+    await h.feed({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
+      name: "memory_review", arguments: {},
+    } })
+    assert.equal(h.last().result.isError, true)
+    assert.match(h.last().result.content[0].text, /MEMORY_FILE must be a single file name/)
+  } finally {
+    if (previous === undefined) delete process.env.MEMORY_FILE
+    else process.env.MEMORY_FILE = previous
+  }
 })
 
 test("does not request roots when client lacks the capability", async () => {

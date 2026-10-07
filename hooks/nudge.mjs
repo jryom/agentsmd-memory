@@ -4,7 +4,7 @@
 // before each prompt. Reuses resolveNudge() so every client emits identical
 // text and honors MEMORY_NUDGE.
 
-import { resolveNudge } from "../src/plugin.mjs"
+import { resolveNudge } from "../src/policy.mjs"
 
 process.stdout.write(
   JSON.stringify({

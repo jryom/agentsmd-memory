@@ -21,5 +21,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   } catch {
     return send({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } })
   }
-  Promise.resolve(server.handleMessage(msg)).catch(() => {})
+  Promise.resolve(server.handleMessage(msg)).catch(() => {
+    process.stderr.write("Unexpected server error.\n")
+    if (typeof msg?.id === "string" || (typeof msg?.id === "number" && Number.isFinite(msg.id))) {
+      send({ jsonrpc: "2.0", id: msg.id, error: { code: -32603, message: "Internal error" } })
+    }
+  })
 })

@@ -1,8 +1,6 @@
 # Development and releases
 
-Development, CI checks, and publishing use the Node.js version in `.tool-versions`. Update the pin as LTS releases arrive. The project enables strict npm engine checks in `.npmrc`.
-
-The package retains Node.js 18+ runtime compatibility. Using LTS for development and CI does not require increasing the runtime minimum.
+Node.js 24+ is required. Development, CI checks, and publishing use the Node.js 24 version in `.tool-versions`. The project enables strict npm engine checks in `.npmrc`.
 
 ## Local testing
 
@@ -17,11 +15,13 @@ To test local server changes in a client, set the MCP command to `node` and its 
 
 The server supports MCP versions `2024-11-05`, `2025-03-26`, and `2025-06-18`. Unknown initialization versions negotiate `2025-06-18`.
 
-Tests cannot measure agent judgment. Check representative sessions before changing save policy: a routine task should make no memory edit, a repeated fact should add no duplicate, and a new gotcha should become one short rule. Requested cleanup should retain essential instructions.
+Tests cannot measure agent judgment. Run the [memory-quality evaluations](evaluation.md) before changing save policy. Record client/model, outcomes, and diffs; wording assertions are not evidence of agent behavior.
+
+The plugin exposes a plain V2 definition (`id`/`setup`) and V1 object entrypoint (`server`, requires OpenCode 1.18.29+), without importing a runtime SDK. V2 registers shared memory tools natively with mandatory `cwd`; MCP remains available for other clients. Contract tests exercise tool registration, execution, and context mutation, not a live OpenCode installation. Before release, verify the installed package in both supported clients: plugin appears active, tools resolve the explicit project, context gets one reminder, `MEMORY_NUDGE` works, and unloading removes tools and reminder. V2 deliberately registers only the agent-loop context hook, not title, compaction, or transient generation hooks. See the [official plugin migration guide](https://opencode.ai/v2/docs/build/plugins/migrate-v1).
 
 ## Release
 
-1. Update `package.json`, `.codex-plugin/plugin.json`, and `.claude-plugin/plugin.json` to the same version.
+1. Run `npm version <version> --no-git-tag-version`; the version hook synchronizes both plugin manifests. After a manual package-version edit, run `npm run sync-version` instead.
 2. Update `CHANGELOG.md`, run `npm test`, and inspect `npm pack --dry-run --json`.
 3. Push to `main`. CI publishes the version to npm after checks pass, unless it is already published.
 

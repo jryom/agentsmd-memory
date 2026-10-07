@@ -1,8 +1,8 @@
 // Resolve a project within MCP roots, then cwd or process.cwd(), and locate
 // the memory file by walking up to the git root; nearest existing file wins.
 
-import { existsSync, statSync } from "node:fs"
-import { dirname, join, parse, isAbsolute, basename, resolve, relative, sep } from "node:path"
+import { existsSync, statSync, realpathSync } from "node:fs"
+import { dirname, join, parse, isAbsolute, resolve, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
 export const DEFAULT_FILE = "AGENTS.md"
@@ -16,8 +16,11 @@ export const FALLBACK_FILES = ["CLAUDE.md"]
 export function memoryFileNames(env = process.env) {
   const v = env.MEMORY_FILE
   if (typeof v === "string" && v.trim()) {
-    const name = basename(v.trim())
-    if (name && name !== "." && name !== ".." && !/[/\\]/.test(name)) return [name]
+    const name = v.trim()
+    if (name === "." || name === ".." || /[/\\\x00]/.test(name)) {
+      throw new Error("MEMORY_FILE must be a single file name, not a path.")
+    }
+    return [name]
   }
   return [DEFAULT_FILE, ...FALLBACK_FILES]
 }
@@ -42,16 +45,25 @@ export function rootUriToPath(uri) {
 
 export function resolveBaseDir({ roots, args } = {}) {
   const directories = Array.isArray(roots)
-    ? roots.map((r) => rootUriToPath(r?.uri)).filter((p) => validDirectory(p)).map((p) => resolve(p))
+    ? [...new Set(roots.map((r) => rootUriToPath(r?.uri)).filter((p) => validDirectory(p)).map((p) => realpathSync(p)))]
     : []
-  const cwd = validDirectory(args?.cwd) ? resolve(args.cwd) : null
-  if (cwd && directories.some((dir) => {
+  if (Array.isArray(roots) && roots.length && !directories.length) {
+    throw new Error("No advertised workspace root is a valid directory.")
+  }
+  if (args?.cwd !== undefined && !validDirectory(args.cwd)) {
+    throw new Error("cwd must be an absolute path to an existing directory.")
+  }
+  const cwd = args?.cwd === undefined ? null : realpathSync(args.cwd)
+  if (cwd && directories.length && !directories.some((dir) => {
     const path = relative(dir, cwd)
     return path === "" || (path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path))
   })) {
-    return cwd
+    throw new Error("cwd is outside the advertised workspace roots.")
   }
-  return directories[0] || cwd || process.cwd()
+  if (!cwd && directories.length > 1) {
+    throw new Error("Multiple workspace roots are available; pass an absolute cwd to select the project.")
+  }
+  return cwd || directories[0] || process.cwd()
 }
 
 function validDirectory(path) {

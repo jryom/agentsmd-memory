@@ -1,17 +1,9 @@
 // opencode plugin entry; independent of the stdio server in the package `bin`.
 
-import { DEFAULT_NUDGE } from "./policy.mjs"
+import { resolveNudge } from "./policy.mjs"
+import { tools } from "./tools.mjs"
 
-export { DEFAULT_NUDGE } from "./policy.mjs"
-
-// MEMORY_NUDGE overrides the reinforcement text. To skip injection entirely,
-// don't load the plugin. Resolved per request so env changes take effect live.
-// Shared with the Claude Code/Codex hook (hooks/nudge.mjs) so every client
-// emits the same text and honors the same override.
-export function resolveNudge() {
-  const v = process.env.MEMORY_NUDGE
-  return v && v.trim().length > 0 ? v.trim() : DEFAULT_NUDGE
-}
+export { DEFAULT_NUDGE, resolveNudge } from "./policy.mjs"
 
 export const AgentsmdMemoryPlugin = async () => ({
   // opencode calls this before every LLM request and expects the hook to mutate
@@ -22,4 +14,31 @@ export const AgentsmdMemoryPlugin = async () => ({
   },
 })
 
-export default AgentsmdMemoryPlugin
+// Plain V2 definition plus V1's object entrypoint (OpenCode >=1.18.29).
+export default {
+  id: "agentsmd-memory",
+  server: AgentsmdMemoryPlugin,
+  async setup(ctx) {
+    await ctx.tool.transform((editor) => {
+      editor.namespace({ name: "agentsmd-memory", description: "Selective, reviewable project memory." })
+      for (const tool of tools) {
+        editor.add({
+          name: tool.name,
+          description: tool.description,
+          input: { ...tool.inputSchema, required: [...(tool.inputSchema.required || []), "cwd"] },
+          options: { namespace: "agentsmd-memory", codemode: true },
+          execute: async (args) => {
+            if (!args?.cwd) throw new Error("Pass an absolute cwd to select the project.")
+            const result = await tool.run(args, {})
+            const content = result.content.map((item) => item.text).join("\n")
+            if (result.isError) throw new Error(content)
+            return { content }
+          },
+        })
+      }
+    })
+    await ctx.session.hook("context", (event) => {
+      event.system.push({ type: "text", text: resolveNudge() })
+    })
+  },
+}

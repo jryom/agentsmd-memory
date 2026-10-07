@@ -1,5 +1,9 @@
 export const DEFAULT_MAX_WORDS = 1000
 
+export function resolveNudge(env = process.env) {
+  return env.MEMORY_NUDGE?.trim() || DEFAULT_NUDGE
+}
+
 export const DEFAULT_NUDGE = `At task completion, use memory_save only for non-obvious learnings that prevent future mistakes or substantial rediscovery. Skip code/doc summaries and duplicates; batch related facts and merge existing guidance. No update is usually needed. Correct misleading memory promptly with memory_forget. Use memory_review for requested cleanup or major obsolescence.`
 
 export const SAVE_RULES = `- Save only if this prevents a likely future mistake or substantial repeated work and cannot be cheaply rediscovered from code or maintained docs. Durability alone is insufficient.

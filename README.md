@@ -4,7 +4,7 @@
 [![ci](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml/badge.svg)](https://github.com/jryom/agentsmd-memory/actions/workflows/publish.yml)
 [![license](https://img.shields.io/npm/l/agentsmd-memory)](./LICENSE)
 
-MCP server for project notes in `AGENTS.md`. No dependencies. Requires Node.js 18+.
+MCP server for project notes in `AGENTS.md`. No dependencies. Requires Node.js 24+.
 
 Tools return a file path and editing instructions. The agent makes the edits with its own tools, so changes appear in your Git diff.
 
@@ -30,22 +30,20 @@ Both plugins install the MCP tools and a reminder hook. Node.js must already be 
 
 ### opencode
 
+Plugin supports OpenCode V2 and V1 1.18.29+. Configuration below is for V2; [V1 configuration](docs/clients.md#opencode-v1).
+
 In `~/.config/opencode/opencode.json`:
 
 ```json
 {
-  "mcp": {
-    "memory": {
-      "type": "local",
-      "command": ["npx", "-y", "agentsmd-memory"],
-      "enabled": true
-    }
-  },
-  "plugin": ["agentsmd-memory"]
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["agentsmd-memory"]
 }
 ```
 
 Restart opencode after editing. [Setup for Cursor, Claude Desktop, and Copilot](docs/clients.md).
+
+V2 plugin provides native memory tools and the reminder; no separate MCP server is needed. Remove an existing memory MCP entry to avoid duplicate tools. Native tools require an explicit absolute `cwd` on every call, avoiding reliance on the plugin instance's directory when sessions move. Other clients and V1 continue to use MCP.
 
 ## Tools
 
@@ -69,11 +67,11 @@ Saves report the file's word count against a soft budget. The budget does not tr
 | `MEMORY_MAX_WORDS` | `1000` | Soft file budget in whitespace-delimited words; positive integer |
 | `MEMORY_NUDGE` | built-in reminder | Replace the plugin reminder; tool guidance still applies |
 
-Set file and budget options in the MCP server environment. Set the reminder override in the client environment. Disable the plugin hook to stop reminders.
+For MCP clients, set file and budget options in the server environment. For native OpenCode V2 tools, set them in the OpenCode process environment. Set the reminder override in the client environment. Disable the plugin hook to stop reminders.
 
 By default, resolution checks `AGENTS.md`, then `CLAUDE.md`, at each directory up to the nearest Git root. The nearest file wins, including a nearer `CLAUDE.md`. Without Git, the search reaches the filesystem root. If no file exists, the tool proposes a file at the Git root or starting directory; the agent can skip creating it.
 
-Pass an absolute `cwd` to select a project within an advertised MCP root. Otherwise, selection uses the first valid root, then a valid `cwd`, then the server's working directory.
+Pass an absolute `cwd` to select a project within an advertised MCP root. Invalid paths and paths outside advertised roots return errors. With multiple distinct roots, `cwd` is required; with one root it is optional. Without roots, selection uses `cwd` or the server's working directory. Symlinks are resolved before checking containment. Invalid path-like `MEMORY_FILE` values return errors rather than being shortened to a file name.
 
 ## Development
 

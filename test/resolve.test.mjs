@@ -1,6 +1,6 @@
 import { test } from "node:test"
 import assert from "node:assert/strict"
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
@@ -27,10 +27,10 @@ test("memoryFileName honors override", () => {
   assert.equal(memoryFileName({ MEMORY_FILE: "GEMINI.md" }), "GEMINI.md")
 })
 
-test("memoryFileName strips paths and rejects traversal", () => {
-  assert.equal(memoryFileName({ MEMORY_FILE: "../../etc/passwd" }), "passwd")
-  assert.equal(memoryFileName({ MEMORY_FILE: "/abs/CLAUDE.md" }), "CLAUDE.md")
-  assert.equal(memoryFileName({ MEMORY_FILE: ".." }), DEFAULT_FILE)
+test("memoryFileName rejects paths and traversal", () => {
+  for (const name of ["../../etc/passwd", "/abs/CLAUDE.md", "..", ".", "a\\b", "a\0b"]) {
+    assert.throws(() => memoryFileName({ MEMORY_FILE: name }), /single file name/)
+  }
 })
 
 test("memoryFileNames defaults to AGENTS.md then CLAUDE.md", () => {
@@ -40,7 +40,7 @@ test("memoryFileNames defaults to AGENTS.md then CLAUDE.md", () => {
 
 test("memoryFileNames collapses to a single explicit override (no fallback)", () => {
   assert.deepEqual(memoryFileNames({ MEMORY_FILE: "CLAUDE.md" }), ["CLAUDE.md"])
-  assert.deepEqual(memoryFileNames({ MEMORY_FILE: "../../etc/passwd" }), ["passwd"])
+  assert.throws(() => memoryFileNames({ MEMORY_FILE: "../../etc/passwd" }), /single file name/)
 })
 
 test("rootUriToPath converts file:// URIs", () => {
@@ -55,12 +55,13 @@ test("rootUriToPath converts file:// URIs", () => {
   }
 })
 
-test("resolveBaseDir: roots beats cwd-arg beats process.cwd()", () => {
+test("resolveBaseDir rejects explicit cwd outside roots", () => {
   const rootDir = tmp()
   const argDir = tmp()
   try {
     const roots = [{ uri: pathToFileURL(rootDir).href }]
-    assert.equal(resolveBaseDir({ roots, args: { cwd: argDir } }), rootDir)
+    assert.throws(() => resolveBaseDir({ roots, args: { cwd: argDir } }), /outside/)
+    assert.equal(resolveBaseDir({ roots }), rootDir)
     assert.equal(resolveBaseDir({ roots: null, args: { cwd: argDir } }), argDir)
     assert.equal(resolveBaseDir({ roots: [], args: {} }), process.cwd())
   } finally {
@@ -69,11 +70,11 @@ test("resolveBaseDir: roots beats cwd-arg beats process.cwd()", () => {
   }
 })
 
-test("resolveBaseDir skips non-existent roots and cwd", () => {
-  assert.equal(
-    resolveBaseDir({ roots: [{ uri: "file:///no/such/dir/xyz" }], args: { cwd: "/no/such/arg" } }),
-    process.cwd(),
-  )
+test("resolveBaseDir rejects invalid roots and explicit cwd", () => {
+  assert.throws(() => resolveBaseDir({ roots: [{ uri: "file:///no/such/dir/xyz" }] }), /workspace root/)
+  for (const cwd of ["/no/such/arg", ".", "", null, 42]) {
+    assert.throws(() => resolveBaseDir({ args: { cwd } }), /absolute path/)
+  }
 })
 
 test("resolveMemoryFile finds nearest existing file walking up", () => {
@@ -185,15 +186,42 @@ test("project cwd selects a nested project or the matching workspace root", () =
   }
 })
 
-test("resolver ignores file paths and relative cwd arguments", () => {
+test("resolver rejects file paths and relative cwd arguments", () => {
   const dir = tmp()
   try {
     const file = join(dir, "file")
     writeFileSync(file, "content")
-    assert.equal(resolveBaseDir({ roots: [{ uri: pathToFileURL(file).href }], args: { cwd: file } }), process.cwd())
-    assert.equal(resolveBaseDir({ args: { cwd: "." } }), process.cwd())
+    assert.throws(() => resolveBaseDir({ roots: [{ uri: pathToFileURL(file).href }] }), /workspace root/)
+    assert.throws(() => resolveBaseDir({ args: { cwd: file } }), /absolute path/)
+    assert.throws(() => resolveBaseDir({ args: { cwd: "." } }), /absolute path/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test("multiple distinct roots require cwd; duplicate roots are not ambiguous", () => {
+  const first = tmp()
+  const second = tmp()
+  try {
+    const roots = [first, second].map((dir) => ({ uri: pathToFileURL(dir).href }))
+    assert.throws(() => resolveBaseDir({ roots }), /Multiple workspace roots/)
+    assert.equal(resolveBaseDir({ roots: [roots[0], roots[0]] }), first)
+  } finally {
+    rmSync(first, { recursive: true, force: true })
+    rmSync(second, { recursive: true, force: true })
+  }
+})
+
+test("symlinks cannot bypass workspace containment", () => {
+  const root = tmp()
+  const outside = tmp()
+  try {
+    symlinkSync(outside, join(root, "outside"), "dir")
+    const roots = [{ uri: pathToFileURL(root).href }]
+    assert.throws(() => resolveBaseDir({ roots, args: { cwd: join(root, "outside") } }), /outside/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
   }
 })
 

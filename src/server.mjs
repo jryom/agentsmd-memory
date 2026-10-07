@@ -12,6 +12,7 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
   let supportsRoots = false
   let roots = null // null = unfetched; array = fetched
   let rootsPromise = null
+  let rootsError = null
   let rootsGeneration = 0
   let nextId = 1
   const pending = new Map()
@@ -30,6 +31,7 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
   }
 
   function ensureRoots() {
+    if (rootsError) return Promise.reject(rootsError)
     if (roots !== null) return Promise.resolve(roots)
     if (!supportsRoots) return Promise.resolve((roots = []))
     if (rootsPromise) return rootsPromise
@@ -37,7 +39,11 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
     return (rootsPromise = request("roots/list", {}).then((res) => {
       if (generation !== rootsGeneration) return ensureRoots()
       rootsPromise = null
-      return (roots = (res && Array.isArray(res.roots) && res.roots) || [])
+      if (!res || !Array.isArray(res.roots)) {
+        rootsError = new Error("Workspace discovery failed or timed out. Retry after refreshing workspace roots; no project was selected.")
+        throw rootsError
+      }
+      return (roots = res.roots)
     }))
   }
 
@@ -46,6 +52,10 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
       return fail(null, -32600, "Invalid request")
     }
     const { id, method, params } = msg
+
+    if ("id" in msg && !(typeof id === "string" || (typeof id === "number" && Number.isFinite(id)))) {
+      return fail(null, -32600, "Invalid request id")
+    }
 
     if (method !== undefined && typeof method !== "string") return fail(id ?? null, -32600, "Invalid request method")
 
@@ -60,6 +70,13 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
       return
     }
 
+    if (params !== undefined && (!params || typeof params !== "object" || Array.isArray(params))) {
+      if (id !== undefined) return fail(id, -32602, "Params must be an object")
+      return
+    }
+
+    if (id === undefined && !method.startsWith("notifications/")) return
+
     if (method === "initialize") {
       supportsRoots = Boolean(params?.capabilities?.roots)
       return reply(id, {
@@ -70,10 +87,11 @@ export function createServer({ send, tools = defaultTools, version = "0.0.0" } =
     }
 
     if (method?.startsWith("notifications/")) {
-      if (method === "notifications/initialized") ensureRoots()
+      if (method === "notifications/initialized") ensureRoots().catch(() => {})
       else if (method === "notifications/roots/list_changed") {
         rootsGeneration++
         roots = null
+        rootsError = null
         rootsPromise = null
       }
       return

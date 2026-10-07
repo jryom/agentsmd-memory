@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agentsmd-memory",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Keep AGENTS.md or CLAUDE.md concise with selective memory saves, evidence-based cleanup, and a conservative task-completion reminder.",
   "author": {
     "name": "jryom"

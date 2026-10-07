@@ -1,6 +1,25 @@
 # Other clients
 
-Node.js 18+ must be available on the client's execution path. On Windows, use `cmd /c npx -y agentsmd-memory`.
+Node.js 24+ must be available on the client's execution path. On Windows, use `cmd /c npx -y agentsmd-memory`.
+
+## opencode V1
+
+Requires OpenCode 1.18.29+ for the plugin's shared V1/V2 object entrypoint. Older V1 clients can still use the MCP server without the plugin reminder.
+
+In `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "mcp": {
+    "memory": {
+      "type": "local",
+      "command": ["npx", "-y", "agentsmd-memory"],
+      "enabled": true
+    }
+  },
+  "plugin": ["agentsmd-memory"]
+}
+```
 
 <details>
 <summary><b>Claude Code — MCP only</b></summary>
