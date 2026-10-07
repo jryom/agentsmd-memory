@@ -79,6 +79,8 @@ Pass an absolute `cwd` to select a project within an advertised MCP root. Invali
 
 ## Development
 
+Experimental branch: [opt-in lifecycle memory](docs/lifecycle.md) adds a committable fact store, task-relevant retrieval, local usefulness signals, and reviewable archival. Existing mode stays default.
+
 Node.js LTS is pinned in `.tool-versions`. Use `asdf install`, `mise install`, or install that version directly.
 
 ```sh

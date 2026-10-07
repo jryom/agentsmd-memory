@@ -12,7 +12,7 @@ test("V2 registers only an agent-context hook and preserves existing context", a
     session: { async hook(name, callback) { hooks.set(name, callback) } },
     tool: { async transform(callback) { callback({ namespace() {}, add(tool) { definitions.push(tool) } }) } },
   })
-  assert.deepEqual(definitions.map((tool) => tool.name), ["memory_save", "memory_forget", "memory_review"])
+  assert.deepEqual(definitions.map((tool) => tool.name), ["memory_save", "memory_forget", "memory_review", "memory_recall", "memory_feedback"])
   const directory = project(t)
   for (const tool of definitions) assert.ok(tool.input.required.includes("cwd"))
   const save = definitions[0]

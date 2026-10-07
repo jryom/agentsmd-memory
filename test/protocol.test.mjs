@@ -123,7 +123,7 @@ test("tools/list returns all tools with schemas", async () => {
   const h = harness()
   await h.feed({ jsonrpc: "2.0", id: 2, method: "tools/list" })
   const names = h.last().result.tools.map((t) => t.name).sort()
-  assert.deepEqual(names, ["memory_forget", "memory_review", "memory_save"])
+  assert.deepEqual(names, ["memory_feedback", "memory_forget", "memory_recall", "memory_review", "memory_save"])
   for (const t of h.last().result.tools) {
     assert.equal(t.inputSchema.type, "object")
   }

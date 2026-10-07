@@ -4,6 +4,7 @@
 import { resolveBaseDir, resolveMemoryFile, memoryFileNames } from "./resolve.mjs"
 import { readFileSync } from "node:fs"
 import { memoryMaxWords, SAVE_RULES } from "./policy.mjs"
+import { lifecycle, rankFacts, LIFECYCLE_RULES } from "./lifecycle.mjs"
 
 function target(args, ctx) {
   return resolveMemoryFile(resolveBaseDir({ roots: ctx?.roots, args }), memoryFileNames())
@@ -39,6 +40,8 @@ export const tools = [
     },
     run(args, ctx) {
       if (!filled(args?.learning)) return fail("memory_save requires a non-empty `learning` string.")
+      const memory = lifecycle(args, ctx)
+      if (memory) return ok(`Assess candidate for ${memory.path}:\n${JSON.stringify(args.learning.trim())}\nRead the store first. With your editing tools, merge a qualifying fact using fields id, fact, scope, evidence (source references), reason, status (candidate/active/archived), protected (boolean). Never invent evidence. Leave files unchanged if low-value.\n${SAVE_RULES}\n${LIFECYCLE_RULES}`)
       const { path, exists } = target(args, ctx)
       const learning = args.learning.trim()
       const heading = exists
@@ -76,6 +79,8 @@ ${SAVE_RULES}`,
     },
     run(args, ctx) {
       if (!filled(args?.description)) return fail("memory_forget requires a non-empty `description` string.")
+      const memory = lifecycle(args, ctx)
+      if (memory) return ok(`Read ${memory.path} and the resolved entry point before correcting facts matching ${JSON.stringify(args.description.trim())}. Check current evidence. Correct misleading facts, or set confirmed obsolete facts to archived. Keep entry-point guidance consistent. Preserve unrelated facts; uncertain matches stay unchanged.\n${LIFECYCLE_RULES}`)
       const names = memoryFileNames()
       const { path, exists } = target(args, ctx)
       if (!exists) return ok(`No ${names.join(" or ")} found; nothing to forget.`)
@@ -99,6 +104,8 @@ Read the current content first and check the evidence, then Edit. Replace mislea
       },
     },
     run(args, ctx) {
+      const memory = lifecycle(args, ctx)
+      if (memory) return ok(`Review ${memory.path}; local usefulness signals: ${memory.local}. Read both and the resolved entry point with your own tools.\n${LIFECYCLE_RULES}\nConsolidate duplicates. Verify active facts and promote supported candidates. Review candidates without distinct-task usefulness first; absence of signals is not evidence of uselessness. Rare but costly gotchas stay. Archive low-value candidates only with a stated reason and supporting assessment. No automatic age-based deletion. Report uncertain contradictions and proposed changes. Leave files unchanged if no meaningful cleanup is justified.`)
       const { path, exists } = target(args, ctx)
       if (!exists) return ok("No memory file exists; nothing to review. Do not create one for a cleanup.")
       return ok(`Review ${path} with your Read/Edit tools.
@@ -110,6 +117,37 @@ ${budget(path, exists)}
 - Preserve user instructions, safety rules, and contributor requirements. Do not discard uncertain guidance merely to reach a number.
 - Follow existing topic-file conventions; link to maintained detail instead of copying it. Do not move content into files the client cannot discover.
 - If memory already meets these criteria, leave it unchanged. Report the meaningful changes and any unresolved questions; avoid cosmetic rewrites.`)
+    },
+  },
+  {
+    name: "memory_recall",
+    description: "Retrieve up to five task-relevant facts from an opt-in sidecar store. Verify evidence before use; lexical ranking is not proof of relevance. Never writes files.",
+    inputSchema: {
+      type: "object",
+      properties: { query: { type: "string", description: "Current task, including relevant topic or code paths." }, cwd: cwdSchema },
+      required: ["query"],
+    },
+    run(args, ctx) {
+      if (!filled(args?.query)) return fail("memory_recall requires a non-empty `query` string.")
+      const memory = lifecycle(args, ctx)
+      if (!memory) return ok("Lifecycle mode is not enabled: no .agents-memory.json found. Use existing project instructions.")
+      return ok(`Retrieved memory data from ${memory.path}:\n${JSON.stringify(rankFacts(memory, args.query), null, 2)}\n${LIFECYCLE_RULES}\nNo lexical match does not mean no relevant fact exists; inspect the store if necessary. Retrieval alone is not usefulness feedback.`)
+    },
+  },
+  {
+    name: "memory_feedback",
+    description: "Return instructions for recording verified usefulness or contradiction locally, once per fact and distinct task. No votes for mere retrieval; never writes files.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" }, task: { type: "string", description: "Stable opaque task id, not sensitive task text." }, outcome: { type: "string", enum: ["useful", "contradicted"] }, cwd: cwdSchema },
+      required: ["id", "task", "outcome"],
+    },
+    run(args, ctx) {
+      if (!filled(args?.id) || !filled(args?.task) || !["useful", "contradicted"].includes(args?.outcome)) return fail("memory_feedback requires id, task, and outcome (useful/contradicted).")
+      const memory = lifecycle(args, ctx)
+      if (!memory) return ok("Lifecycle mode is not enabled; no feedback recorded.")
+      if (!memory.facts.some((fact) => fact.id === args.id && fact.status !== "archived")) return fail("Unknown or archived fact id.")
+      return ok(`After verifying evidence, use your editing tools to merge this signal into ${memory.local}, shaped as {"version":1,"signals":[]} :\n${JSON.stringify({ id: args.id, task: args.task, outcome: args.outcome, at: Date.now() })}\nReplace any existing signal for this id/task; repeated calls are not extra votes. Record useful only when the verified fact materially helped, not merely when retrieved. For contradictions also call memory_forget to correct tracked knowledge.\n${LIFECYCLE_RULES}`)
     },
   },
 ]
